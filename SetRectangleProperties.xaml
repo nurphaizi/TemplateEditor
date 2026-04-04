@@ -1,0 +1,115 @@
+﻿<PageFunction
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+    x:Class="TemplateEdit.SetRectangleProperties"
+    x:TypeArguments="sys:String"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:TemplateEdit" xmlns:wpfTool="http://schemas.xceed.com/wpf/xaml/toolkit"
+    mc:Ignorable="d"
+    d:DesignHeight="450" d:DesignWidth="800"
+    Title="SetRectanglePropertiesFunction">
+    <Grid x:Name="rectangleProperties" >
+        <Grid.Resources>
+            <local:ConverterDoubleToString x:Key="converterDoubleToString"/>
+            <local:ColorToBrushConverter x:Key="converterSolidColorBrushToColor"/>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" >
+            <Label Content="Установить свойства прямоугольника" FontFamily="Arial" FontSize="24"/>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal">
+            <Label Content="Ширина"/>
+            <TextBox x:Name="width" Width="50" Margin="3" 
+                         Text="{Binding Path=RectangleFigure.Width, Converter = {StaticResource converterDoubleToString},ConverterParameter='px',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+            <Label Content="(px)"/>
+            <TextBox x:Name="widthMM" Width="50" Margin="3" 
+                         Text="{Binding Path=RectangleFigure.Width, Converter = {StaticResource converterDoubleToString},ConverterParameter='mm',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+            <Label Content="(mm)"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="sliderWidth" VerticalAlignment="Center" Maximum="1000" Minimum="1" Width="100" Value="{Binding Path=RectangleFigure.Width,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/> 
+        </StackPanel>
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            <Label Content="Высота"/>
+            <TextBox x:Name="height" Width="50" Margin="3" 
+                         Text="{Binding Path=RectangleFigure.Height, Converter = {StaticResource converterDoubleToString},ConverterParameter='px',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+            <Label Content="(px)"/>
+            <TextBox x:Name="heightMM" Width="50" Margin="3" 
+                         Text="{Binding Path=RectangleFigure.Height, Converter = {StaticResource converterDoubleToString},ConverterParameter='mm',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+            <Label Content="(mm)"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="sliderHeight"  VerticalAlignment="Center" Maximum="1000" Minimum="1" Width="100" Value="{Binding Path=RectangleFigure.Height,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/> 
+        </StackPanel>
+        <StackPanel Grid.Row="3" Orientation="Horizontal">
+            <Label Content="Толщина границы"/>
+            <TextBox x:Name="thickness" Width="50" Margin="3" 
+                     Text="{Binding Path=RectangleFigure.StrokeThickness, Converter = {StaticResource converterDoubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+            <Separator Margin="3"/>
+            <Slider x:Name="sliderThickness" VerticalAlignment="Center" Maximum="100" Minimum="1" Width="100" Value="{Binding Path=RectangleFigure.StrokeThickness,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+        </StackPanel>
+        <StackPanel Grid.Row="4" Orientation="Horizontal">
+            <Label Content="Радиус X"/>
+            <TextBox x:Name="radiusX" Width="50" Margin="3" 
+                     Text="{Binding Path=RectangleFigure.RadiusX, Converter = {StaticResource converterDoubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3" />
+            <Slider x:Name="sliderRadiusX" VerticalAlignment="Center" Maximum="50" Minimum="0" Width="50" Value="{Binding Path=RectangleFigure.RadiusX,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Label Content="Радиус Y"/>
+            <TextBox x:Name="RadiusY"  Width="50" Margin="3" 
+                     Text="{Binding Path=RectangleFigure.RadiusY, Converter = {StaticResource converterDoubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3" />
+            <Slider x:Name="sliderRadiusY" VerticalAlignment="Center" Maximum="50" Minimum="0" Width="50" Value="{Binding Path=RectangleFigure.RadiusY,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Label Content="Угол"/>
+            <TextBox x:Name="angle" Width="50" Margin="3"
+                         Text="{Binding Path= RectangleFigure.Angle, Mode=TwoWay,Converter={StaticResource converterDoubleToString}, UpdateSourceTrigger=PropertyChanged}" />
+            <Label Content="гр"/>
+            <Slider x:Name="sliderAngle" VerticalAlignment="Center" Maximum="90" Minimum="1" Width="100" Value="{Binding Path= RectangleFigure.Angle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3" />
+        </StackPanel>
+        <StackPanel Grid.Row="5" Grid.ColumnSpan="2"  Orientation="Horizontal">
+            <Label Content="BG" />
+            <wpfTool:ColorPicker x:Name="colorPickerBg" DisplayColorAndName="True" SelectedColor="{Binding Path=RectangleFigure.Fill,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="50" />
+            <Separator Margin="3"/>
+            <Label Content="FG" />
+            <wpfTool:ColorPicker x:Name="colorPickerFg" DisplayColorAndName="True"  SelectedColor="{Binding Path=RectangleFigure.Stroke,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="50" />
+            <Label Content="Прозрачность" />
+            <TextBox x:Name="Opacity"  Width="50" Margin="3" 
+                         Text="{Binding Path=RectangleFigure.Opacity, Converter = {StaticResource converterDoubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <CheckBox Content="Печать как рисунок" Margin="3" IsChecked="{Binding Path=RectangleFigure.ConvertToBitmap,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+        </StackPanel>
+        <Canvas x:Name="canvas" Grid.Column="1" Grid.Row="0" Grid.RowSpan="6" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Rectangle x:Name="rectangle" Width="{Binding Path=RectangleFigure.Width,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                       Height="{Binding Path=RectangleFigure.Height,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                       Fill="{Binding Path=RectangleFigure.Fill,Converter={StaticResource converterSolidColorBrushToColor}}"
+                       StrokeThickness="{Binding Path=RectangleFigure.StrokeThickness}"
+                       Stroke="{Binding Path=RectangleFigure.Stroke,Converter={StaticResource converterSolidColorBrushToColor}}"
+                       RadiusX="{Binding Path=RectangleFigure.RadiusX}"
+                       RadiusY="{Binding Path=RectangleFigure.RadiusY}"
+                       Opacity="{Binding Path=RectangleFigure.Opacity}"
+                       RenderTransformOrigin="0.5,0.5">
+                <Rectangle.RenderTransform>
+                    <RotateTransform Angle="{Binding Path=RectangleFigure.Angle,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                </Rectangle.RenderTransform>
+            </Rectangle>
+        </Canvas>
+        <StackPanel Grid.Column="1" Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" >
+            <Button Content="OK" Width="100" Margin="3" Click="Ok_Click"/>
+            <Button Content="Cancel" Width="100" Margin="3" Click="Cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</PageFunction>

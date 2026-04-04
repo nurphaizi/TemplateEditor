@@ -1,0 +1,83 @@
+﻿<PageFunction
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+    x:Class="TemplateEdit.PolygonFunction"
+    x:TypeArguments="sys:String"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:TemplateEdit" 
+    xmlns:wpfTool="http://schemas.xceed.com/wpf/xaml/toolkit"
+    mc:Ignorable="d"
+    d:DesignHeight="450" d:DesignWidth="800"
+    Title="PolygonFunction">
+    <Grid>
+        <Grid.Resources>
+            <local:ConverterDoubleToString x:Key="converterDoubleToString" />
+            <local:BrushToColorConverter x:Key="brushToColorConverter"/>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Center" >
+                <Label Content="Установите свойства многоугольника" FontFamily="Arial" FontSize="24"/>
+            </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Grid.Row="0">
+                <Label Content="Толщина линии"/>
+                <TextBox x:Name="thickness" Width="50" Margin="3"
+              Text="{Binding Path= StrokeThickness,Converter={StaticResource converterDoubleToString}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel  Grid.Row="4" Orientation="Horizontal">
+                <Label Content="Цвет линии"/>
+                <wpfTool:ColorPicker x:Name="stroke" Width="150" Height="25" Margin="3"
+                 SelectedColor="{Binding Path= Stroke, Converter={StaticResource brushToColorConverter}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+            <StackPanel  Grid.Row="5" Orientation="Horizontal">
+                <Label Content="Цвет заполнения"/>
+                <wpfTool:ColorPicker x:Name="fill" Width="150" Height="25" Margin="3"
+                 SelectedColor="{Binding Path= Fill, Converter={StaticResource brushToColorConverter}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+            <StackPanel  Grid.Row="6" Orientation="Horizontal">
+                <Label Content="Левый верхний угол"/>
+                <TextBox x:Name="left" Width="40" Margin="3"
+              Text="{Binding Path= Polygon.Top,Converter={StaticResource converterDoubleToString}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox x:Name="top" Width="40" Margin="3"
+              Text="{Binding Path= Polygon.Left,Converter={StaticResource converterDoubleToString}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Grid.Row="7"  Grid.ColumnSpan="2">
+                <Separator Margin="3"/>
+                <CheckBox x:Name="polygonToBitmap" Content="Вывод как Bitmap" IsChecked="{Binding Path = Polygon.ConvertToBitmap,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+
+        </Grid>
+        <Border x:Name="borderCanvas" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" BorderThickness="1" BorderBrush="Black">
+            <Canvas x:Name="polygonCanvas" Background="White" MouseLeftButtonDown="Canvas_MouseLeftButtonDown"  Loaded="polygonCanvas_Loaded"/>
+        </Border>
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name ="applyButton" Content="Применить" Height="30" ToolTip="Применить изменения" FontFamily="Segoe UI Symbol" Foreground="Black" FontSize="12"  Background="Green" Click="ApplyButton_Click"/>
+            <Separator Margin="3"/>
+            <Button Content="Отмена" ToolTip="Закрыть окно свойств многоугольника без сохранения изменений" Height="30"  FontFamily="Segoe UI Symbol" Foreground="Black" FontSize="12"  Background="Red" Click="CancelButton_Click"/>
+        </StackPanel>
+    </Grid>
+</PageFunction>

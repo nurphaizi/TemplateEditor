@@ -1,0 +1,78 @@
+﻿<Page x:Class="TemplateEdit.AppSettings"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:TemplateEdit"
+      mc:Ignorable="d" 
+      d:DesignHeight="450" d:DesignWidth="800"
+      Title="AppSettings">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Orientation="Horizontal">
+            <Label Margin="5" Content="Принтер" />
+            <ComboBox x:Name="barcode_printer"     ItemsSource="{Binding Path=InstalledPrinters}" SelectedItem="{Binding Path=BarcodePrinter,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal">
+            <Label  Margin ="5" Content="Страница"/>
+            <ComboBox x:Name="barcode_pageSize"  IsEditable="False"  ItemsSource="{Binding Path=BarcodePrintPageMediaSizeCapability,Mode=OneWay,UpdateSourceTrigger=PropertyChanged}" 
+                      DisplayMemberPath="CustomMediaSizeDisplayName"
+                      SelectedItem = "{Binding Path=BarcodePrintSettings.PageMediaSize,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+        </StackPanel>
+        
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            <Label Margin="5" Content="Разрешение" />
+            <ComboBox  x:Name="barcode_pageResolution" DisplayMemberPath="CustomDisplayName" ItemsSource="{Binding Path=BarcodePrintPageResolutionCapability,UpdateSourceTrigger=PropertyChanged}"  SelectedItem="{Binding Path=BarcodePrintSettings.PageResolution,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+        </StackPanel>
+        
+        <StackPanel Grid.Row="3" Orientation="Horizontal">
+            <Label Margin="5"  Content="Ориентация" />
+            <ComboBox x:Name="barcode_pageOrientation" Text="{Binding Path = BarcodePrintSettings.PageOrientation}" DisplayMemberPath="Description"  ItemsSource="{Binding Path=BarcodePrintPageOrientationCapability,UpdateSourceTrigger=PropertyChanged}"  SelectedItem="{Binding Path=BarcodePrintSettings.PageOrientation,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal">
+            <CheckBox  x:Name="barcode_print" Margin="3" Content="Терминал" IsChecked="{Binding Path=BarcodePrintSettings.Terminal,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" ToolTip="Печать через SDK XPRINTER-360B" />
+        </StackPanel>
+        <StackPanel Grid.Row="4" Orientation="Horizontal">
+            <TextBlock  Margin="5" Text="Масштаб"  />
+            <TextBox  x:Name="barcode_print_scale" Margin="3" Width="40"  Text="{Binding Path=BarcodePrintSettings.Scale,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" ToolTip="Масштаб" />
+        </StackPanel>
+        <StackPanel  Grid.Row="6"  Orientation="Horizontal" Grid.ColumnSpan="2">
+            <TextBlock Text="Файл базы данных" Width="200"/>
+            <StackPanel Margin="10" />
+            <TextBox   TextWrapping="Wrap" MinWidth="80"  >
+                <TextBox.Text>
+                    <Binding Path="DbFileName" Mode="TwoWay" />
+                </TextBox.Text>
+            </TextBox>
+            <Button  x:Name="btDbFileName" FontFamily="Segoe MDL2 Assets" FontSize="64" FontWeight="Bold" Content="..." Width="27" Click="Button_Click_1"/>
+        </StackPanel>
+        <StackPanel  Grid.Row="7"  Orientation="Horizontal" Grid.ColumnSpan="2">
+            <TextBlock Text="Путь до папки Log файлам)" Width="200" TextWrapping="Wrap"/>
+            <StackPanel Margin="10" />
+            <TextBox  TextWrapping="Wrap" MinWidth="80"  >
+                <TextBox.Text>
+                    <Binding Path="WBImagesLogFiles" Mode="TwoWay" />
+                </TextBox.Text>
+            </TextBox>
+            <Button x:Name="btWBImagesLogFiles" FontFamily="Segoe MDL2 Assets" FontSize="64" FontWeight="Bold" Content="..." Width="27" Click="Button_Click_1"/>
+        </StackPanel>
+        <StackPanel Grid.Row="9" Orientation="Horizontal"  HorizontalAlignment="Right">
+            <Button Content="Закрыть" Width="{Binding ElementName=btSaveAndClose, Path=ActualWidth}" Click="Button_Click"/>
+            <Separator Margin="3"/>
+            <Button x:Name="btSaveAndClose"  Content="Сохранить и Закрыть" Click="btSaveAndClose_Click"/>
+        </StackPanel>
+
+    </Grid>
+</Page>

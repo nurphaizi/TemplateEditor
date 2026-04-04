@@ -1,0 +1,27 @@
+﻿<Page x:Class="TemplateEdit.PagePrint"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:TemplateEdit"
+      mc:Ignorable="d" d:DesignWidth="800"
+      Title="PagePrint">
+    <Page.Width>
+        <Binding ElementName="message"  Path="ActualWidth"/>
+    </Page.Width>
+    <Page.Height>254</Page.Height>
+    <Grid Width = "{Binding ElementName=message, Path=ActualWidth}">
+        <StackPanel Background="LightGray" >
+            <TextBlock x:Name="message" HorizontalAlignment="Center"   Foreground="Black" FontFamily="Segoe UI Symbol" FontSize="50" > Печатаем ?</TextBlock>
+            <GroupBox BorderThickness="2" >
+                <StackPanel>
+                    <Separator Margin="3" />
+                    <Button x:Name ="printReport" Content="Печать отчета" Height="50" ToolTip="Печать отчета" FontFamily="Segoe UI Symbol" Foreground="Black" FontSize="12"  Background="Green" Click="Button_Click_2"/>
+                    <Separator Margin="3" />
+                    <Button Content="Отмена" ToolTip="Закрыть" Height="50"  FontFamily="Segoe UI Symbol" Foreground="Black" FontSize="12"  Background="Red" Click="Button_Click"/>
+                    <Separator Margin="3" />
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+    </Grid>
+</Page>

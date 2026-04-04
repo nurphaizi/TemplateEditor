@@ -1,0 +1,184 @@
+﻿<PageFunction
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+    x:Class="TemplateEdit.BarcodeFunction"
+    x:TypeArguments="sys:String"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:wpfTool="clr-namespace:Xceed.Wpf.Toolkit;assembly=Xceed.Wpf.Toolkit"
+    xmlns:local="clr-namespace:TemplateEdit"
+    mc:Ignorable="d"
+    d:DesignHeight="450" d:DesignWidth="800"
+    Title="BarcodeFunction">
+    <Grid>
+        <Grid.Resources>
+            <local:AngleToRotationConverter x:Key="angleToRotationConverter"/>
+            <local:BarcodeStringToBitmapImageConverter x:Key="barcodeStringToBitmapImageConverter"/>
+            <local:ConverterFloatToString x:Key="floatToString"/>
+            <local:ConverterDoubleToString x:Key="doubleToString"/>
+            <local:ConverterIntToString x:Key="intToString"/>
+            <local:DictionaryToObservableConverter x:Key="_itemsSource"/>
+            <local:DictionaryLookupConverter x:Key="dictionaryLookupConverter"/>
+            <local:FieldTypeDescriptionConverter x:Key="fieldTypeDescription"/>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="60"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Vertical" >
+            <Label x:Name="functionTitle"  Content="Создание поля с штрих кодом" FontSize="120" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <StackPanel   Orientation="Horizontal">
+                <Separator Margin="3"/>
+                <Label Content="Left"/>
+                <TextBox   MinWidth="50" Margin="3"
+                 Text="{Binding Path=BarcodeLeft,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                <Separator Margin="3"/>
+                <Slider  Minimum="0" Maximum="580" Value="{Binding Path=BarcodeLeft,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Левая граница"/>
+                <Separator Margin="3"/>
+                <Label Content="Top"/>
+                <TextBox   MinWidth="50" Margin="3"
+                 Text="{Binding Path=BarcodeTop,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                <Separator Margin="3"/>
+                <Slider  Minimum="0" Maximum="580" Value="{Binding Path=BarcodeTop,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Левая граница"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row ="1" Orientation="Horizontal">
+            <Label Content="Тип штрих кода"/>
+            <Separator Margin="3"/>
+            <ComboBox x:Name="barcodeFormat"  Height="50"  ItemsSource="{Binding Path = BarcodeFormatCollection}" SelectedValue="{Binding Path=BarcodeFormatSelected,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"  />
+            <Separator Margin="3"/>
+            <CheckBox x:Name="readable" Content="печать штрих кода" IsChecked="{Binding Path=BarcodeProperties.Readable,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <TextBox x:Name ="narrow" MinWidth="40"   Text="{Binding Path=BarcodeProperties.Narrow,Converter={StaticResource intToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <TextBox x:Name ="wide" MinWidth="40" Text="{Binding Path=BarcodeProperties.Wide,Converter={StaticResource intToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+        </StackPanel>
+        <StackPanel  Grid.Row ="2" Orientation="Horizontal">
+            <Separator Margin="3"/>
+            <Label Content="Ширина штрих кода"/>
+            <TextBox x:Name="barcodeWidth"  MinWidth="50" Margin="3"
+                 Text="{Binding Path=BarcodeWidth,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="widthSlider" Minimum="0" Maximum="580" Value="{Binding Path=BarcodeWidth,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Ширина в пикселях"/>
+            <Separator Margin="3"/>
+            <Label Content="Высота штрих кода"/>
+            <TextBox x:Name="barcodeHeight"  MinWidth="50" Margin="3"
+                 Text="{Binding Path=BarcodeHeight,Converter ={StaticResource doubleToString },Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="heightSlider" Minimum="0" Maximum="400" Value="{Binding Path=BarcodeHeight,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Высота в пикселях"/>
+            <Label Content="Угол поворота (гр)"/>
+            <TextBox x:Name="angle"  MinWidth="50" Margin="3"
+                 Text="{Binding Path=Angle,Converter ={StaticResource doubleToString },Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="angleSlider" Minimum="0" Maximum="360" Value="{Binding Path=Angle,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Угол поворота штрих кода в градусах"/>
+        </StackPanel>
+        <StackPanel x:Name="textPropertyString"   Grid.Row="3" Orientation="Horizontal">
+            <Label Content="Символ штрих кода"/>
+            <Separator Margin="3"/>
+            <TextBox x:Name="barcode" MinWidth="200" Text="{Binding Path=Barcode,Mode=TwoWay,UpdateSourceTrigger=LostFocus}"
+                     ToolTip="Выбор кодировки - правая кнопка мышки">
+                    <TextBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Кодировка текста" Click="OnNavigateButtonClick"/>
+                        </ContextMenu>
+                    </TextBox.ContextMenu>
+            </TextBox>
+            <Separator Margin="3"/>
+            <ComboBox  x:Name="systemFonts"   DisplayMemberPath="Source" SelectedValuePath="Source" ItemsSource="{Binding Source={x:Static Fonts.SystemFontFamilies}}" SelectedValue="{Binding Path=FontSelected,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBox x:Name="fontSize" Width="50" Margin="3" Text="{Binding Path=FontSizeSelected,Converter={StaticResource floatToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+        </StackPanel>
+        <StackPanel Grid.Row="4"  Orientation="Horizontal">
+            <Label Content="Тип источника" />
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataSourceType" ItemsSource="{Binding Source={x:Static local:EnumHelper.DataSourceTypes}}" 
+                          SelectedValue="{Binding Path=DataSourceType,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Label Content="Имя источника" />
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataSourceName" MinWidth="150" Margin="3" 
+                         ItemsSource="{Binding Path = AvailableSources,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                         DisplayMemberPath="Key"
+                         SelectedValue="{Binding Path = DataSourceName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsEditable="True" />
+            <Label Content="Имя поля" />
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataFieldName" MinWidth="150" Margin="3" ToolTip="{Binding Path=ColumnName.FieldType}"
+                          ItemsSource="{Binding Path=ColumnNames,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                          DisplayMemberPath="Key"  SelectedValue = "{Binding  Path=ColumnName,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEditable="True">
+                <ComboBox.ItemContainerStyle>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="IsEnabled" Value="{Binding IsActive}" />
+                        <Setter Property="ToolTip">
+                            <Setter.Value>
+                                <Binding Path="" Converter="{StaticResource fieldTypeDescription}"/>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ComboBox.ItemContainerStyle>
+            </ComboBox>
+            <ListView x:Name="columnDataList" MaxHeight="80" SelectionChanged="columnDataList_SelectionChanged" Margin="3"/>
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataSourceFieldType" ItemsSource="{Binding Source={x:Static local:EnumHelper.DataSourceFieldTypes}}" 
+               SelectedValue="{Binding Path=DataSourceFieldType,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="100"/>
+        </StackPanel>
+        <StackPanel Grid.Row="5"  Orientation="Horizontal">
+            <Separator Margin="3"/>
+            <Label Content="Цвет переднего плана" />
+            <Separator Margin="3"/>
+            <wpfTool:ColorPicker x:Name="colorPickerFg" SelectedColor="{Binding Path=BarcodeForeground,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+            <Separator Margin="3"/>
+            <Label Content="Цвет фона" />
+            <wpfTool:ColorPicker x:Name="colorPickerBg" SelectedColor="{Binding Path=BarcodeBackground,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+            <Separator Margin="3"/>
+        </StackPanel>
+        <StackPanel Grid.Row="6">
+        <Canvas x:Name="canvas" >
+            <Image x:Name="barcodeImage" 
+                   Canvas.Left="{Binding Path=BarcodeLeft,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                   Canvas.Top="{Binding Path=BarcodeTop,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                   Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center"
+                   IsEnabled="True" 
+                   Width="{Binding Path=BarcodeWidth,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                   Height="{Binding Path=BarcodeHeight,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                   RenderTransform ="{Binding Path=Angle, Converter={StaticResource angleToRotationConverter}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   RenderTransformOrigin="0.5,0.5">
+                   <Image.Source>
+                       <MultiBinding  Converter="{StaticResource barcodeStringToBitmapImageConverter}" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged" >
+                                <Binding Path="Barcode" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                                <Binding Path="BarcodeFormatSelected" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                                <Binding Path="FontSelected" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                                <Binding Path="FontSizeSelected" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                                <Binding Path="BarcodeWidth" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                                <Binding Path="BarcodeHeight" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                                <Binding Path="BarcodeForeground" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                                <Binding Path="BarcodeBackground" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged"/>
+                        </MultiBinding>
+                    </Image.Source>
+                </Image>
+        </Canvas>
+    </StackPanel>
+    <StackPanel Grid.Row="8"  Margin="3"  Orientation="Horizontal" HorizontalAlignment="Right" >
+        <Button x:Name="btSave"   Content="Создать" Click="Button_Click_OK"/>
+        <Separator Margin="3"/>
+        <Button Content="Отмена" Click="Button_Click_Cancel"/>
+    </StackPanel>
+</Grid>
+</PageFunction>

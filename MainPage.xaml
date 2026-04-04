@@ -1,0 +1,159 @@
+﻿<Page x:Class="TemplateEdit.MainPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:TemplateEdit" xmlns:wpfTool="http://schemas.xceed.com/wpf/xaml/toolkit" 
+      mc:Ignorable="d" 
+      d:DesignHeight="450" d:DesignWidth="800"
+      Title="Макет печати"
+      KeepAlive="True">
+    <Page.Resources>
+        <local:ConverterDoubleToString x:Key="doubleToString"/>
+        <local:ConverterStringToDouble x:Key="stringToDouble"/>
+        <local:EnumDescriptionConverter x:Key="EnumDescriptionConverter"/>
+    </Page.Resources>
+    <Grid >
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="80"/>
+            <ColumnDefinition Width="580"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Grid.ColumnSpan="3">
+            <TextBlock Text="Отчет" FontWeight="Normal" FontSize="16" FontFamily="Constantia" >
+                <TextBlock.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Новый отчет" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_NewReport"/>
+                        <MenuItem Header="Сохранить отчет" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_SaveReport"/>
+                        <MenuItem Header="Загрузить отчет" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_LoadReport"/>
+                    </ContextMenu>
+                </TextBlock.ContextMenu>
+            </TextBlock>
+  
+            <Separator Width="1" Margin="5,0,5,0" VerticalAlignment="Stretch" />
+            <Menu>
+                <MenuItem Header="Штрих код"     FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddBarCode"/>
+                <MenuItem Header="А" FontWeight="Bold" FontSize="24" FontFamily="Constantia" Click="MenuItem_Click_4">
+                    <MenuItem Header="Одна строка" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddTextBox"/>
+                    <MenuItem Header="Несколько строк" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddTextBlock"/>
+                </MenuItem>
+                <MenuItem Header="Фигура" FontWeight="Normal" FontSize="12" FontFamily="Constantia">
+                    <MenuItem Header="Прямоугольник" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddRect"/>
+                    <MenuItem Header="Линия" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddLine"/>
+                    <MenuItem Header="Многоугольник" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddPolygon"/>
+                </MenuItem>
+
+                <MenuItem Header="Рисунок" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddImage"/>
+                <MenuItem Header="QR-код" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_QRCode"/>
+                <MenuItem Header="Логотип" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click"/>
+                <MenuItem Header="Честный знак" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_HonistSign"/>
+                <MenuItem Header="Конец этикетки" FontWeight="Normal" FontSize="8" FontFamily="Constantia" Click="MenuItem_Click_ForcedPageEject"/>
+                <MenuItem Header="Сервис" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_Service">
+                    <MenuItem Header="Источники данных с именами" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_DataSources"/>
+                    <MenuItem Header="Выбор принтера" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_Printer"/>
+                    <MenuItem Header="Шрифты принтера" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_PrinterFonts"/>
+                </MenuItem>
+            </Menu>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" VerticalAlignment="Center" Loaded="StackPanel_Loaded" >
+            <Label Content="A" FontFamily="Arial" FontSize="24" FontWeight="Black"/>
+            <Separator Margin="3" />
+            <ComboBox x:Name="FontSelector" ToolTip="i Шрифт одного или нескольких текстовых объектов"  ItemsSource="{Binding Path=InstalledFonts,Mode=OneWay,UpdateSourceTrigger=PropertyChanged}"  SelectedItem="{Binding Path=_FontFamily, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Source"   Width="95" SelectionChanged="FontSelector_SelectionChanged"/>
+            <Separator Margin="3" />
+            <TextBox x:Name="fontSize" Text="{Binding FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged,Converter={StaticResource doubleToString }}" Width="50
+                     "/>
+            <ComboBox Name="weights" SelectedItem="{Binding Path=FontWeight,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" SelectedValue="{Binding Path=FontWeight,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="100" >
+                <x:Static Member="FontWeights.Black"/>
+                <x:Static Member="FontWeights.Bold"/>
+                <x:Static Member="FontWeights.DemiBold"/>
+                <x:Static Member="FontWeights.ExtraBlack"/>
+                <x:Static Member="FontWeights.ExtraBold"/>
+                <x:Static Member="FontWeights.ExtraLight"/>
+                <x:Static Member="FontWeights.Heavy"/>
+                <x:Static Member="FontWeights.Light"/>
+                <x:Static Member="FontWeights.Medium"/>
+                <x:Static Member="FontWeights.Normal"/>
+                <x:Static Member="FontWeights.Regular"/>
+                <x:Static Member="FontWeights.SemiBold"/>
+                <x:Static Member="FontWeights.Thin"/>
+                <x:Static Member="FontWeights.UltraBlack"/>
+                <x:Static Member="FontWeights.UltraBold"/>
+                <x:Static Member="FontWeights.UltraLight"/>
+            </ComboBox>
+
+            <ComboBox Name="styles" SelectedItem="{Binding Path=FontStyle,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" SelectedValue="{Binding Path=FontStyle,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}">
+                <x:Static Member="FontStyles.Normal"/>
+                <x:Static Member="FontStyles.Italic"/>
+                <x:Static Member="FontStyles.Oblique"/>
+            </ComboBox>
+            <Label Content="BG" />
+            <wpfTool:ColorPicker x:Name="colorPickerBg" DisplayColorAndName="True" SelectedColor="{Binding Path=BackgroundColor,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="50" />
+            <Label Content="FG" />
+            <wpfTool:ColorPicker x:Name="colorPickerFg" DisplayColorAndName="True" SelectedColor="{Binding Path=ForegroundColor,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="50" />
+                <Label Content="Секция"/>
+                <ComboBox x:Name="reportSectionSelector" ItemsSource="{Binding ReportSections,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" SelectedItem="{Binding SelectedSection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  Width="112"  Height="27"/>
+        </StackPanel>
+        <ScrollViewer Visibility="Visible" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2">
+                <StackPanel Grid.Column="0"  Orientation="Horizontal">
+                <ListBox  x:Name="reportSections"  Width="88"  
+                 ItemsSource="{Binding ReportSections,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                 SelectedItem="{Binding SelectedSection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                 SelectionMode="Single"
+                 HorizontalContentAlignment="Stretch">
+                    <!-- Show enum description -->
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}" FontSize="14" Padding="4"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <!-- Dynamic ContextMenu -->
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <!-- Dynamic Add {EnumValue} items -->
+                            <MenuItem  Header="Добавить секцию" ItemsSource="{Binding AllSections}">
+                                <MenuItem.ItemContainerStyle>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Header" Value="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
+                                        <Setter Property="Command" Value="{Binding DataContext.AddSpecificCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                        <Setter Property="CommandParameter" Value="{Binding}"/>
+                                    </Style>
+                                </MenuItem.ItemContainerStyle>
+                            </MenuItem>
+                            <Separator/>
+                            <!-- Remove -->
+                            <MenuItem Header="Удалить секцию" Command="{Binding RemoveCommand}"/>
+                            <Separator/>
+                            <!-- Set template section -->
+                            <MenuItem Header="Выбрать секцию" Command="{Binding SetReportSectionCommand}"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+                <Border x:Name="templateCanvasBorder"   Grid.Column="1" Grid.Row="2"
+                    Width="{Binding Path=_PageSize.Width,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                    Height="{Binding Path=_PageSize.Height,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"                    
+                    BorderThickness="2" ClipToBounds="True" BorderBrush="Black" Grid.ColumnSpan="2">
+                    <Canvas x:Name="templateCanvas"  
+                        Background="White" AllowDrop="True"/>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        
+      
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="btPrint" Content="Печать" Width="140" Click="btPrint_Click" />
+            <Separator Width="3"/>
+            <Button x:Name="btOpen" Content="Открыть отчет" Width="140" Click="Button_Click_Open"/>
+            <Separator Width="3"  />
+            <Button x:Name="btSave" Content="Сохранить отчет" Width="140" Click="Button_Click_Save"/>
+            <Separator Width="3"  />
+            <Button x:Name="btSaveAndClose" Content="Сохранить и закрыть" Width="140" Click="Button_Click_SaveAndClose"/>
+            <Separator Width="3"  />
+        </StackPanel>
+    </Grid>
+</Page>

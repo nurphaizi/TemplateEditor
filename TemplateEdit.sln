@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TemplateEdit", "TemplateEdit.csproj", "{1E3C09C5-6F85-4712-9B10-8F472C72334F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1E3C09C5-6F85-4712-9B10-8F472C72334F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E3C09C5-6F85-4712-9B10-8F472C72334F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E3C09C5-6F85-4712-9B10-8F472C72334F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E3C09C5-6F85-4712-9B10-8F472C72334F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CF45263F-5DCB-4C87-8C5D-FFF6E5AF2862}
+	EndGlobalSection
+EndGlobal

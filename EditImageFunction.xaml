@@ -1,0 +1,146 @@
+﻿<PageFunction
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+    x:Class="TemplateEdit.EditImageFunction"
+    x:TypeArguments="sys:String"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:TemplateEdit"
+    mc:Ignorable="d"
+    d:DesignHeight="450" d:DesignWidth="800"
+    Title="EditImageFunction">
+    <Grid>
+        <Grid.Resources>
+            <local:ConverterDoubleToString x:Key="doubleToString"/>
+            <local:AngleToRotationConverter x:Key="angleToRotationConverter"/>
+            <local:FieldTypeDescriptionConverter x:Key="fieldTypeDescription"/>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="80"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+
+        <StackPanel Orientation="Vertical" Grid.ColumnSpan="2">
+            <Label x:Name="functionTitle"  Content="Создание поля с изображением" FontSize="120" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <StackPanel   Orientation="Horizontal">
+                <Separator Margin="3"/>
+                <Label Content="Left"/>
+                <TextBox   MinWidth="50" Margin="3"
+                 Text="{Binding Path=ImageLeft,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                <Separator Margin="3"/>
+                <Slider  Minimum="0" Maximum="580" Value="{Binding Path=ImageLeft,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Левая граница"/>
+                <Separator Margin="3"/>
+                <Label Content="Top"/>
+                <TextBox   MinWidth="50" Margin="3"
+                 Text="{Binding Path=ImageTop,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                <Separator Margin="3"/>
+                <Slider  Grid.Column="1" Minimum="0" Maximum="580" Value="{Binding Path=ImageTop,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Верхняя граница"/>
+            </StackPanel>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Grid.Row="1" >
+            <Label Content="Источник"/>
+            <Separator Margin="3"/>
+            <TextBox x:Name="imagePath" MinWidth="200" Text="{Binding Path=ImagePath,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Button Content="..." Width="40" Click="Button_Click"/>
+        </StackPanel>
+        <ListView x:Name="columnDataList" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" SelectionChanged="columnDataList_SelectionChanged" Margin="3,0,4,0"/>
+
+        <StackPanel  Grid.Row ="2" Orientation="Horizontal">
+
+            <Separator Margin="3"/>
+            <Label Content="Ширина"/>
+            <TextBox x:Name="imageWidth"  MinWidth="50" Margin="3"
+                 Text="{Binding Path=ImageWidth,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="widthSlider" Minimum="0" Maximum="580" Value="{Binding Path=ImageWidth,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Ширина в пикселях"/>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Orientation="Horizontal">
+            <Separator Margin="3"/>
+            <Label Content="Высота"/>
+            <TextBox x:Name="imageHeight"  MinWidth="50" Margin="3"
+                 Text="{Binding Path=ImageHeight,Converter ={StaticResource doubleToString },Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="heightSlider" Minimum="0" Maximum="400" Value="{Binding Path=ImageHeight,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Высота в пикселях"/>
+        </StackPanel>
+        <StackPanel Grid.Row="4" Orientation="Horizontal">
+            <Label Content="Угол поворота (гр)"/>
+            <TextBox x:Name="angle"  MinWidth="50" Margin="3"
+                 Text="{Binding Path=ImageAngle,Converter ={StaticResource doubleToString },Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Slider x:Name="angleSlider" Minimum="0" Maximum="360" Value="{Binding Path=ImageAngle,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+                    Width="200" Margin="3" IsSnapToTickEnabled="True" TickFrequency="1" 
+                    ToolTip="Угол поворота штрих кода в градусах"/>
+        </StackPanel>
+        <StackPanel Grid.Row="5"  Grid.ColumnSpan="2" Orientation="Horizontal">
+            <Label Content="Тип источника" />
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataSourceType" ItemsSource="{Binding Source={x:Static local:EnumHelper.DataSourceTypes}}" 
+                          SelectedValue="{Binding Path=DataSourceType,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Separator Margin="3"/>
+            <Label Content="Имя источника" />
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataSourceName" MinWidth="80" Margin="3" 
+                       ItemsSource="{Binding Path = AvailableSources,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                       DisplayMemberPath="Key"
+                       SelectedValue="{Binding Path = DataSourceName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsEditable="True"/>
+            <Separator Margin="3"/>
+            <Label Content="Имя поля" />
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataFieldName" MinWidth="80" Margin="3" ToolTip="{Binding Path=ColumnName.FieldType}"
+                     ItemsSource="{Binding Path=ColumnNames,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                     DisplayMemberPath="Key"  SelectedValue = "{Binding  Path=ColumnName,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEditable="True">
+                <ComboBox.ItemContainerStyle>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="IsEnabled" Value="{Binding IsActive}" />
+                        <Setter Property="ToolTip">
+                            <Setter.Value>
+                                <Binding Path="" Converter="{StaticResource fieldTypeDescription}"/>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ComboBox.ItemContainerStyle>
+            </ComboBox>
+            <Label Content="Тип поля источника" />
+            <Separator Margin="3"/>
+            <ComboBox x:Name="dataSourceFieldType" ItemsSource="{Binding Source={x:Static local:EnumHelper.DataSourceFieldTypes}}" 
+                          SelectedValue="{Binding Path=DataSourceFieldType,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="100
+                      "/>
+        </StackPanel>
+
+        <Canvas x:Name="canvas" Grid.Row="6" Grid.RowSpan="2" Background="Transparent">
+            <Image x:Name="image"  Stretch="UniformToFill"
+               Canvas.Left ="{Binding Path=ImageLeft,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+               Canvas.Top ="{Binding Path=ImageTop,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+               Width="{Binding Path = ImageWidth,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+               Height="{Binding Path = ImageHeight,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" 
+               Source="{Binding Path = ImageData,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+               RenderTransform ="{Binding Path=ImageAngle, Converter={StaticResource angleToRotationConverter}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+               RenderTransformOrigin="0.5,0.5"/>
+        </Canvas>
+        <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Button Content="Сохранить" Click="Button_Click_SaveImage"/>
+            <Separator Margin="3"/>
+            <Button Content="Отказ" Click="Button_Click_Cancel"/>
+        </StackPanel>
+    </Grid>
+</PageFunction>
