@@ -30,15 +30,21 @@ using Xceed.Wpf.Toolkit.Core.Converters;
 using ZXing.QrCode.Internal;
 namespace TemplateEdit;
 
+using System.ComponentModel.Design.Serialization;
 using System.Drawing.Imaging;
+using System.Drawing.Printing;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
+using System.Windows.Ink;
+using System.Windows.Media.Media3D;
+using System.Xml;
+using ExCSS;
 using SixLabors.ImageSharp.Memory;
 using ZXing;
+using static System.Net.WebRequestMethods;
 using Brush=System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
-
 
 
 public static class TsplBitmapConverter
@@ -97,7 +103,7 @@ public static class TsplBitmapConverter
         using (DrawingContext dc = dv.RenderOpen())
         {
             VisualBrush vb = new VisualBrush(line);
-            dc.DrawRectangle(vb, null, new Rect(new Point(), bounds.Size));
+            dc.DrawRectangle(vb, null, new Rect(new System.Windows. Point(), bounds.Size));
         }
 
         rtb.Render(dv);
@@ -428,9 +434,9 @@ public static class TsplBitmapConverter
         DrawingVisual dv = new DrawingVisual();
         using (DrawingContext dc = dv.RenderOpen())
         {
-            dc.DrawRectangle(Brushes.White, null, new Rect(new Point(), bounds.Size));
+            dc.DrawRectangle(Brushes.White, null, new Rect(new System.Windows.Point(), bounds.Size));
             VisualBrush vb = new VisualBrush(element);
-            dc.DrawRectangle(vb, null, new Rect(new Point(), bounds.Size ));
+            dc.DrawRectangle(vb, null, new Rect(new System.Windows.Point(), bounds.Size ));
         }
         rtb.Render(dv);
         rtb.Freeze();
@@ -556,7 +562,7 @@ public static class TsplBitmapConverter
             return Task.Run(() =>
             {
                 //            var xpsPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".xps");
-                var xpsPath = System.IO.Path.Combine(@"C:\WB_SQL", Guid.NewGuid().ToString("N") + ".xps");
+                var xpsPath = System.IO.Path.Combine(@"C:\WB_SQL", Guid.NewGuid().ToString("N") + ".oxps");
                 var tsplPath = System.IO.Path.Combine(@"C:\WB_SQL", Guid.NewGuid().ToString("N") + ".tspl");
                 var done = new ManualResetEvent(false);
 
@@ -835,7 +841,7 @@ public static class TsplBitmapConverter
 
         public async Task SendTsplAsync(string printerIp, string filePath)
         {
-            byte[] data = await File.ReadAllBytesAsync(filePath);
+            byte[] data = await System.IO.File.ReadAllBytesAsync(filePath);
 
             using System.Net.Sockets.TcpClient client = new TcpClient();
             await client.ConnectAsync(printerIp, 9100);
@@ -849,35 +855,42 @@ public static class TsplBitmapConverter
         {
             await Task.Run(async () =>
             {
-                byte[] bytes = await File.ReadAllBytesAsync(filePath);
+                byte[] bytes = await System.IO.File.ReadAllBytesAsync(filePath);
                 RawPrinterHelper.SendBytesToPrinter(printerName, bytes);
             });
         }
+   
+
     public async Task GenerateOnSta(
-            string connectionString,
-            string availableSources,
-            string jsonContent,
-            string xpsPath,
-            string tsplPath,
-            string printerName,
-            PrintTicket ticket,
-            PrintSettings printSettings,
-            CancellationToken token)
+          string connectionString,
+          string availableSources,
+          string jsonContent,
+          string xpsPath,
+          string tsplPath,
+          string printerName,
+          PrintTicket ticket,
+          PrintSettings printSettings,
+          CancellationToken token)
     {
         loader = new ImagePipelineLoader();
         using var xps = new XpsDocument(xpsPath, FileAccess.Write);
         var writer = XpsDocument.CreateXpsDocumentWriter(xps);
-        FixedDocument doc = new FixedDocument();
+        FixedDocument fixedDoc = new FixedDocument();
 
+       
+        bool ForcePageBreakBefore = false;
+        bool prevForcePageBreakBefore = false;
         var tsplWriter = new AsyncLineWriter(tsplPath);
         var AvailableSources = JsonHelper.Deserialize<ObservableCollection<KeyValueItem>>(availableSources);
         var report = JsonHelper.Deserialize<Dictionary<CrystalReportSection, TemplateRecord>>(jsonContent);
         var header = GenerateTSPLCommands(null, ticket, printSettings);
         await tsplWriter.WriteLineAsync(header);
+
         foreach (var section in report)
         {
             var template = section.Value;
-            var ForcePageBreakBefore = template.elements.Where(x => x.Name.StartsWith("PageBreak_") == true).FirstOrDefault() == null ? false : true;
+            prevForcePageBreakBefore = ForcePageBreakBefore;
+            ForcePageBreakBefore = template.elements.Where(x => x.Name.StartsWith("PageBreak_") == true).FirstOrDefault() == null ? false : true;
             var sql = ReportDataSql(template, AvailableSources);
             if (string.IsNullOrEmpty(sql))
             {
@@ -896,24 +909,63 @@ public static class TsplBitmapConverter
 
                 foreach (var obj in buffer.GetConsumingEnumerable(token))
                 {
+
                     var page = await CreatePageAsync(obj, modelType, template, ticket, printSettings);
-                    var pageContent = new PageContent();
+                    if ( fixedDoc.Pages.Count == 0 || ForcePageBreakBefore)
+                    {
+                        goto NewPage;
+                    }
+                    if (fixedDoc.Pages.Count > 0  && prevForcePageBreakBefore)
+                    {
+                        prevForcePageBreakBefore=false;
+                        goto NewPage;
+                    }
+                    var canvas = page.Children.OfType<Canvas>().FirstOrDefault();
+                    double bottom = 0;
+                   
+                        var lastFixedPage = fixedDoc.Pages[fixedDoc.Pages.Count-1].Child as FixedPage;
+                    if (lastFixedPage != null)
+                    {
+                        var rootCanvas = lastFixedPage.Children.OfType<Canvas>().FirstOrDefault();
+                        bottom = lastFixedPage.Children.OfType<Canvas>().Sum(c => c.Height);
+                        if (rootCanvas != null)
+                        {
+                            if (bottom + canvas.Height > ticket.PageMediaSize.Height.Value)
+                            {
+                                goto NewPage;
+                            }
+                            else
+                            {
+                                page.Children.Remove(canvas);
+                                Canvas.SetTop(canvas, bottom);
+                                FixedPage.SetTop(canvas, bottom);
+                                FixedPage.SetLeft(canvas, 0);
+                                lastFixedPage.Children.Add(canvas);
+                                lastFixedPage.Measure(new System.Windows.Size(ticket.PageMediaSize.Width.Value, ticket.PageMediaSize.Height.Value));
+                                lastFixedPage.Arrange(new Rect(new System.Windows.Point(0, 0), lastFixedPage.DesiredSize));
+                                lastFixedPage.UpdateLayout();
+                                goto NextRow;
+                            }
+                        }
+                    }
+                    
+
+                NewPage: var pageContent = new PageContent();
                     ((IAddChild)pageContent).AddChild(page);
-                    doc.Pages.Add(pageContent);
+                    fixedDoc.Pages.Add(pageContent);
                     string tsplCommands = GenerateTSPLCommands(page, ticket, printSettings);
                     await tsplWriter.WriteLineAsync(tsplCommands);
-                    if (section.Key != CrystalReportSection.Details)
+                NextRow: if (section.Key != CrystalReportSection.Details)
                     {
                         break;
                     }
                 }
-                Log.Information("Producer completed for section {Section}", section.Key);
                 await producer.WaitAsync(token);
             }
         }
         try
         {
-            writer.Write(doc);
+            writer.Write(fixedDoc);
 
         }
         catch (Exception ex)
@@ -934,7 +986,7 @@ public static class TsplBitmapConverter
         }
 
     }
-        private int DotsToMm(double dots)
+    private int DotsToMm(double dots)
         {
             return (int)(dots / 96.0 * 25.4);
         }
@@ -1029,7 +1081,7 @@ public static class TsplBitmapConverter
                                 continue;
                             }
                         }
-                        if (rect.Fill is SolidColorBrush brush && (brush.Color == Colors.White || brush.Color == Colors.Transparent))
+                        if (rect.Fill is SolidColorBrush brush && (brush.Color == System.Windows.Media.Colors.White || brush.Color == System.Windows.Media.Colors.Transparent))
                         {
                             sb.AppendLine($"""
 
@@ -1157,35 +1209,235 @@ public static class TsplBitmapConverter
             return 0; // Default to 0 if it's not a standard angle
 
         }
-
-        // ======================================================
-        // PAGE CREATION
-        // ======================================================
-        private async Task<FixedPage> CreatePageAsync(
-            object model,
-            Type type,
-            TemplateRecord template,
-            PrintTicket ticket,
-            PrintSettings printSettings
-            )
+    public void FixCanvasProperties(Canvas myCanvas)
+    {
+        foreach (UIElement child in myCanvas.Children)
         {
-            var page = new FixedPage { Width = ticket.PageMediaSize.Width.Value, Height = ticket.PageMediaSize.Height.Value };
-            var canvas = new Canvas
+            // 1. Capture current bound values for positioning
+            double currentLeft = Canvas.GetLeft(child);
+            double currentTop = Canvas.GetTop(child);
+
+            // 2. Clear the bindings from the positioning properties
+            BindingOperations.ClearBinding(child, Canvas.LeftProperty);
+            BindingOperations.ClearBinding(child, Canvas.TopProperty);
+
+            // 3. Re-apply the values as "Local" fixed values
+            Canvas.SetLeft(child, currentLeft);
+            Canvas.SetTop(child, currentTop);
+
+            // Optional: Repeat for other common bound properties like Width/Height
+            if (child is FrameworkElement fe)
             {
-                Width = ticket.PageMediaSize.Width.Value,
-                Height = ticket.PageMediaSize.Height.Value,
-                Background = Brushes.White
-            };
-            CreateSectionCanvas(canvas, template);
-            var props = type.GetProperties();
-            await SetSectionBindingsAsync(canvas, template, props, model);
-            page.Children.Add(canvas);
-            page.Measure(new Size(canvas.Width, canvas.Height));
-            page.Arrange(new Rect(0, 0, canvas.Width, canvas.Height));
-            page.UpdateLayout();
-            return page;
+                double currentWidth = fe.ActualWidth;
+                double currentHeight = fe.ActualHeight;
+
+                BindingOperations.ClearBinding(fe, FrameworkElement.WidthProperty);
+                BindingOperations.ClearBinding(fe, FrameworkElement.HeightProperty);
+
+                fe.Width = currentWidth;
+                fe.Height = currentHeight;
+            }
+            if (child is TextBox textBox)
+            {
+                var background = textBox.Background;
+                BindingOperations.ClearBinding(textBox, TextBox.BackgroundProperty);
+                textBox.Background = background;
+
+                var foreground = textBox.Foreground;
+                BindingOperations.ClearBinding(textBox, TextBox.ForegroundProperty);
+                textBox.Foreground = foreground;
+
+
+                var fontFamily = textBox.FontFamily;
+                BindingOperations.ClearBinding(textBox, TextBox.FontFamilyProperty);
+                textBox.FontFamily = fontFamily;
+
+                var fontSize = textBox.FontSize;
+                BindingOperations.ClearBinding(textBox, TextBox.FontSizeProperty);
+                textBox.FontSize = fontSize;
+                var fontStyle = textBox.FontStyle;
+                BindingOperations.ClearBinding(textBox, TextBox.FontStyleProperty);
+                textBox.FontStyle = fontStyle;
+
+                var fontWeight = textBox.FontWeight;
+                BindingOperations.ClearBinding(textBox, TextBox.FontWeightProperty);
+                textBox.FontWeight = fontWeight;
+
+                var fontStretch = textBox.FontStretch;
+                BindingOperations.ClearBinding(textBox, TextBox.FontStretchProperty);
+                textBox.FontStretch = fontStretch;
+
+                var textWrapping = textBox.TextWrapping;
+                BindingOperations.ClearBinding(textBox, TextBox.TextWrappingProperty);
+                textBox.TextWrapping = textWrapping;
+
+                var renderTransform = textBox.RenderTransform;
+                BindingOperations.ClearBinding(textBox, TextBox.RenderTransformProperty);
+                textBox.RenderTransform = renderTransform;
+            }
+            if (child is System.Windows.Shapes.Rectangle rectangle)
+            {
+                var fill = rectangle.Fill;
+                BindingOperations.ClearBinding(rectangle, Rectangle.FillProperty);
+                rectangle.Fill = fill;
+
+                var stroke = rectangle.Stroke;
+                BindingOperations.ClearBinding(rectangle, Rectangle.StrokeProperty);
+                rectangle.Stroke = stroke;
+
+
+                var StrokeThickness = rectangle.StrokeThickness;
+                BindingOperations.ClearBinding(rectangle, Rectangle.StrokeThicknessProperty);
+                rectangle.StrokeThickness = StrokeThickness;
+
+                var RadiusX = rectangle.RadiusX;
+                BindingOperations.ClearBinding(rectangle, Rectangle.RadiusXProperty);
+                rectangle.RadiusX = RadiusX;
+
+                var RadiusY = rectangle.RadiusY;
+                BindingOperations.ClearBinding(rectangle, Rectangle.RadiusYProperty);
+                rectangle.RadiusY = RadiusY;
+
+                var horizontalAlignment = rectangle.HorizontalAlignment;
+                BindingOperations.ClearBinding(rectangle, Rectangle.HorizontalAlignmentProperty);
+                rectangle.HorizontalAlignment = horizontalAlignment;
+
+                var verticalAlignment = rectangle.VerticalAlignment;
+                BindingOperations.ClearBinding(rectangle, Rectangle.VerticalAlignmentProperty);
+                rectangle.VerticalAlignment = verticalAlignment;
+
+                var opacity = rectangle.Opacity;
+                BindingOperations.ClearBinding(rectangle, Rectangle.OpacityProperty);
+                rectangle.Opacity = opacity;
+
+                var stretch = rectangle.Stretch;
+                BindingOperations.ClearBinding(rectangle, Rectangle.StretchProperty);
+                rectangle.Stretch = stretch;
+            }
+            if (child is System.Windows.Shapes.Line line)
+            {
+                var X1 = line.X1;
+                BindingOperations.ClearBinding(line, Line.X1Property);
+                line.X1 = X1;
+                var X2 = line.X2;
+                BindingOperations.ClearBinding(line, Line.X2Property);
+                line.X2 = X2;
+                var stroke = line.Stroke;
+                BindingOperations.ClearBinding(line, Line.StrokeProperty);
+                line.Stroke = stroke;
+                var StrokeThickness = line.StrokeThickness;
+                BindingOperations.ClearBinding(line, Line.StrokeThicknessProperty);
+                line.StrokeThickness = StrokeThickness;
+                var StrokeStartLineCap = line.StrokeStartLineCap;
+                BindingOperations.ClearBinding(line, Line.StrokeStartLineCapProperty);
+                line.StrokeStartLineCap = StrokeStartLineCap;
+                var StrokeEndLineCap = line.StrokeEndLineCap;
+                BindingOperations.ClearBinding(line, Line.StrokeEndLineCapProperty);
+                line.StrokeEndLineCap = StrokeEndLineCap;
+                var opacity = line.Opacity;
+                BindingOperations.ClearBinding(line, Line.OpacityProperty);
+                line.Opacity = opacity;
+            }
+            if (child is System.Windows.Shapes.Polygon polygon)
+            {
+                var points = polygon.Points;
+                BindingOperations.ClearBinding(polygon, Polygon.PointsProperty);
+                polygon.Points = points;
+
+                var fill = polygon.Fill;
+                BindingOperations.ClearBinding(polygon, Polygon.FillProperty);
+                polygon.Fill = fill;
+
+                var stroke = polygon.Stroke;
+                BindingOperations.ClearBinding(polygon, Polygon.StrokeProperty);
+                polygon.Stroke = stroke;
+
+                var StrokeThickness = polygon.StrokeThickness;
+                BindingOperations.ClearBinding(polygon, Polygon.StrokeThicknessProperty);
+                polygon.StrokeThickness = StrokeThickness;
+
+
+                var horizontalAlignment = polygon.HorizontalAlignment;
+                BindingOperations.ClearBinding(polygon, Polygon.HorizontalAlignmentProperty);
+                polygon.HorizontalAlignment = horizontalAlignment;
+
+                var verticalAlignment = polygon.VerticalAlignment;
+                BindingOperations.ClearBinding(polygon, Polygon.VerticalAlignmentProperty);
+                polygon.VerticalAlignment = verticalAlignment;
+
+                var opacity = polygon.Opacity;
+                BindingOperations.ClearBinding(polygon, Polygon.OpacityProperty);
+                polygon.Opacity = opacity;
+
+                var stretch = polygon.Stretch;
+                BindingOperations.ClearBinding(polygon, Polygon.StretchProperty);
+                polygon.Stretch = stretch;
+            }
+            if (child is Image image)
+            {
+                var horizontalAlignment = image.HorizontalAlignment;
+                BindingOperations.ClearBinding(image, Image.HorizontalAlignmentProperty);
+                image.HorizontalAlignment = horizontalAlignment;
+                var verticalAlignment = image.VerticalAlignment;
+                BindingOperations.ClearBinding(image, Image.VerticalAlignmentProperty);
+                image.VerticalAlignment = verticalAlignment;
+                var opacity = image.Opacity;
+                BindingOperations.ClearBinding(image, Image.OpacityProperty);
+                image.Opacity = opacity;
+                var stretch = image.Stretch;
+                BindingOperations.ClearBinding(image, Image.StretchProperty);
+                image.Stretch = stretch;
+                var source = image.Source;
+                BindingOperations.ClearBinding(image, Image.SourceProperty);
+                image.Source = source;
+            }
         }
-        private void CreateSectionCanvas(Canvas templateCanvas, TemplateRecord template)
+    }
+
+    // ======================================================
+    // PAGE CREATION
+    // ======================================================
+    private async Task<FixedPage> CreatePageAsync(
+        object model,
+        Type type,
+        TemplateRecord template,
+        PrintTicket ticket,
+        PrintSettings printSettings
+        )
+    {
+        var page = new FixedPage { Width = ticket.PageMediaSize.Width.Value, Height = ticket.PageMediaSize.Height.Value };
+        var canvas = new Canvas
+        {
+            Width = ticket.PageMediaSize.Width.Value,
+            Height = ticket.PageMediaSize.Height.Value,
+            Background = Brushes.White
+        };
+        CreateSectionCanvas(canvas, template);
+        var props = type.GetProperties();
+        await SetSectionBindingsAsync(canvas, template, props, model);
+        canvas.Measure(new Size(canvas.Width, canvas.Height));
+        canvas.Arrange(new Rect(new System.Windows.Point(), new Size(canvas.Width, canvas.Height)));
+        canvas.UpdateLayout();
+
+        double maxBottom = 0;
+        foreach (UIElement child in canvas.Children)
+        {
+            double top = Canvas.GetTop(child);
+            double height = (child as FrameworkElement)?.ActualHeight ?? 0;
+            maxBottom = Math.Max(maxBottom, top + height);
+        }
+        canvas.Height = maxBottom;
+        canvas.Measure(new Size(canvas.Width, canvas.Height));
+        canvas.Arrange(new Rect(new System.Windows.Point(), new Size(canvas.Width, canvas.Height)));
+        canvas.UpdateLayout();
+        FixCanvasProperties(canvas);
+
+        page.Children.Add(canvas); 
+        return page;
+    }
+
+
+    private void CreateSectionCanvas(Canvas templateCanvas, TemplateRecord template)
         {
             templateCanvas.BeginInit();
             templateCanvas.Children.Clear(); // Очистка текущего холста перед загрузкой нового макета
@@ -1576,7 +1828,7 @@ public static class TsplBitmapConverter
             bindingBackground.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
             textBox.SetBinding(TextBox.BackgroundProperty, bindingBackground);
 
-            textBox.RenderTransformOrigin = new Point(0.5, 0.5);
+            textBox.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
             Binding bindingAngle = new Binding();
             bindingAngle.Converter = new AngleToRotationConverter();
             bindingAngle.Mode = BindingMode.TwoWay;
@@ -1617,7 +1869,7 @@ public static class TsplBitmapConverter
             binding.ConverterParameter = barcodeImageProperties.Name;
             barcodeImage.SetBinding(Image.SourceProperty, binding);
 
-            barcodeImage.RenderTransformOrigin = new Point(0.5, 0.5);
+            barcodeImage.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
             var bindingAngle = new Binding();
             bindingAngle.Converter = new AngleToRotationConverter();
             bindingAngle.Source = Barcodes;
@@ -1677,7 +1929,7 @@ public static class TsplBitmapConverter
             binding.Path = new PropertyPath("[" + qrCodeImageProperties.Name + "].Value");
             qrcodeImage.SetBinding(Image.SourceProperty, binding);
 
-            qrcodeImage.RenderTransformOrigin = new Point(0.5, 0.5);
+            qrcodeImage.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
             var bindingAngle = new Binding();
             bindingAngle.Converter = new AngleToRotationConverter();
             bindingAngle.Source = QRCodes;
@@ -1736,7 +1988,7 @@ public static class TsplBitmapConverter
             binding.Path = new PropertyPath("[" + imageProperties.Name + "].ImageSource");
             image.SetBinding(Image.SourceProperty, binding);
 
-            image.RenderTransformOrigin = new Point(0.5, 0.5);
+            image.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
             var bindingAngle = new Binding();
             bindingAngle.Converter = new AngleToRotationConverter();
             bindingAngle.Source = Images;

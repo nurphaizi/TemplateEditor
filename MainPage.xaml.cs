@@ -3241,6 +3241,10 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
 
     private void MenuItem_Click_ForcedPageEject(object sender, RoutedEventArgs e)
     {
+        templateCanvas.Measure(new Size(_PageSize.Width, _PageSize.Height));
+        templateCanvas.Arrange(new Rect(new System.Windows.Point(), new Size(_PageSize.Width, _PageSize.Height)));
+        templateCanvas.UpdateLayout();
+
         double maxY = 0;
         foreach (var child in templateCanvas.Children.OfType<UIElement>())
         {
@@ -3252,7 +3256,7 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         }
         Polyline polyline = new Polyline();
 
-        polyline.Name = "PageBreak_" + (templateCanvas.Children.OfType<Image>().Count() + 1).ToString();
+        polyline.Name = "PageBreak_" + (templateCanvas.Children.OfType<Polyline>().Count() + 1).ToString();
         polyline.ContextMenu = new ContextMenu();
         polyline.Fill = Brushes.Transparent;
         polyline.Stroke = Brushes.Red;

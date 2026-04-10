@@ -23,16 +23,16 @@ using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 public record TemplateRecord
 {
     public CrystalReportSection Section { get; set;}
-    public System.Collections.Generic.List<CanvasElement> elements=new();
-    public System.Collections.Generic.List<TextBoxCanvasElement> textBoxCanvasElements=new();
-    public System.Collections.Generic.List<ImageCanvasElement> imageCanvasElements = new();
-    public System.Collections.Generic.List<TextFieldValue> textFieldValues = new();
-    public System.Collections.Generic.List<ImageProperties> imageProperties = new();
-    public System.Collections.Generic.List<BarcodeImageProperties> barcodeImage= new();
-    public System.Collections.Generic.List<QRCodeImageProperties> qRCodeImages = new();
-    public System.Collections.Generic.List<RectangleFigureProperties> rectangleFigures= new();
-    public System.Collections.Generic.List<LineProperties> lineProperties = new();
-    public System.Collections.Generic.List<PolygonProperties> polygonProperties = new();
+    public System.Collections.Generic.List<CanvasElement> elements = new System.Collections.Generic.List<CanvasElement>();
+    public System.Collections.Generic.List<TextBoxCanvasElement> textBoxCanvasElements = new System.Collections.Generic.List<TextBoxCanvasElement>();
+    public System.Collections.Generic.List<ImageCanvasElement> imageCanvasElements = new System.Collections.Generic.List<ImageCanvasElement>(); 
+    public System.Collections.Generic.List<TextFieldValue> textFieldValues = new System.Collections.Generic.List<TextFieldValue>();             
+    public System.Collections.Generic.List<ImageProperties> imageProperties = new System.Collections.Generic.List<ImageProperties>();       
+    public System.Collections.Generic.List<BarcodeImageProperties> barcodeImage = new System.Collections.Generic.List<BarcodeImageProperties>();
+    public System.Collections.Generic.List<QRCodeImageProperties> qRCodeImages = new System.Collections.Generic.List<QRCodeImageProperties>() ;
+    public System.Collections.Generic.List<RectangleFigureProperties> rectangleFigures = new System.Collections.Generic.List<RectangleFigureProperties>();
+    public System.Collections.Generic.List<LineProperties> lineProperties = new System.Collections.Generic.List<LineProperties>();
+    public System.Collections.Generic.List<PolygonProperties> polygonProperties = new System.Collections.Generic.List<PolygonProperties>();
 
 }
 public static class NetSQLiteTypeMapper
@@ -166,8 +166,10 @@ public class SkipEmptyResolver : DefaultContractResolver
 public static class JsonHelper
 {
     public static CompositeContractResolver  resolver = new CompositeContractResolver(new IContractResolver[] { new SkipEmptyResolver(),
+         new IgnoreEmptyCollectionsResolver(),
          new CamelCasePropertyNamesContractResolver(),
-         new DefaultContractResolver() });
+         new DefaultContractResolver()
+     });
     public  static System.Windows.Media.Brush ColorToBrush(string color)
     {
         Brush brush;
