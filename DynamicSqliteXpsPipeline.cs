@@ -875,9 +875,7 @@ public static class TsplBitmapConverter
         loader = new ImagePipelineLoader();
         using var xps = new XpsDocument(xpsPath, FileAccess.Write);
         var writer = XpsDocument.CreateXpsDocumentWriter(xps);
-        FixedDocument fixedDoc = new FixedDocument();
-
-       
+        FixedDocument fixedDoc = new FixedDocument();      
         bool ForcePageBreakBefore = false;
         bool prevForcePageBreakBefore = false;
         var tsplWriter = new AsyncLineWriter(tsplPath);
@@ -909,9 +907,8 @@ public static class TsplBitmapConverter
 
                 foreach (var obj in buffer.GetConsumingEnumerable(token))
                 {
-
                     var page = await CreatePageAsync(obj, modelType, template, ticket, printSettings);
-                    if ( fixedDoc.Pages.Count == 0 || ForcePageBreakBefore)
+                    if ( fixedDoc.Pages.Count == 0)
                     {
                         goto NewPage;
                     }
@@ -921,9 +918,9 @@ public static class TsplBitmapConverter
                         goto NewPage;
                     }
                     var canvas = page.Children.OfType<Canvas>().FirstOrDefault();
+                  
                     double bottom = 0;
-                   
-                        var lastFixedPage = fixedDoc.Pages[fixedDoc.Pages.Count-1].Child as FixedPage;
+                    var lastFixedPage = fixedDoc.Pages[fixedDoc.Pages.Count - 1].Child as FixedPage;
                     if (lastFixedPage != null)
                     {
                         var rootCanvas = lastFixedPage.Children.OfType<Canvas>().FirstOrDefault();

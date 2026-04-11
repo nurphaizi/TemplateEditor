@@ -3276,7 +3276,7 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         Report[SelectedSection].elements.Add(new CanvasElement()
         {
             Name = polyline.Name,
-            Type = "PolyLine",
+            Type = "Polyline",
             Stroke = JsonHelper.Serialize<Brush>(polyline.Stroke),
             Fill = JsonHelper.Serialize<Brush>(polyline.Fill),
             StrokeThickness = polyline.StrokeThickness,
