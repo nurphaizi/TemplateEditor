@@ -41,6 +41,7 @@ using System.Windows.Media.Media3D;
 using System.Xml;
 using ExCSS;
 using SixLabors.ImageSharp.Memory;
+using Xceed.Wpf.AvalonDock.Controls;
 using ZXing;
 using static System.Net.WebRequestMethods;
 using Brush=System.Windows.Media.Brush;
@@ -883,6 +884,143 @@ public static class TsplBitmapConverter
         var report = JsonHelper.Deserialize<Dictionary<CrystalReportSection, TemplateRecord>>(jsonContent);
         var header = GenerateTSPLCommands(null, ticket, printSettings);
         await tsplWriter.WriteLineAsync(header);
+        double left = 0;
+        double top = 0;
+        double width = 0;
+        double height = 0;
+        foreach (var section in report)
+        {
+            var template = section.Value;
+            prevForcePageBreakBefore = ForcePageBreakBefore;
+            ForcePageBreakBefore = template.elements.Where(x => x.Name.StartsWith("PageBreak_") == true).FirstOrDefault() == null ? false : true;
+            var sql = ReportDataSql(template, AvailableSources);
+            if (string.IsNullOrEmpty(sql))
+            {
+                sql = "SELECT date('now','localtime') AS CurrentTime";
+            }
+            Type modelType = CreateDynamicModelType(connectionString, sql);
+
+            using (BlockingCollection<object> buffer = new BlockingCollection<object>(50))
+            {
+                var producer = StartProducer(
+                    connectionString,
+                    sql,
+                    modelType,
+                    buffer,
+                    token);
+            
+                foreach (var obj in buffer.GetConsumingEnumerable(token))
+                {
+                    var page = await CreatePageAsync(obj, modelType, template, ticket, printSettings);
+                    var canvas = page.Children.OfType<Canvas>().FirstOrDefault();
+                    if (canvas != null) {
+                        width = canvas.ActualWidth;
+                        height = canvas.ActualHeight;
+                    }
+                    if ( fixedDoc.Pages.Count == 0)
+                    {
+                        goto NewPage;
+                    }
+                    if (fixedDoc.Pages.Count > 0  && prevForcePageBreakBefore)
+                    {
+                        left = 0;
+                        top = 0;
+                        prevForcePageBreakBefore =false;
+                        goto NewPage;
+                    }
+                    var lastFixedPage = fixedDoc.Pages[fixedDoc.Pages.Count - 1].Child as FixedPage;
+                    if (lastFixedPage != null)
+                    {
+                        if (left  + canvas.ActualWidth > ticket.PageMediaSize.Width.Value)
+                        {
+                            left = 0;
+                            top = top + height;
+                        }
+                        if ( top + canvas.ActualHeight > ticket.PageMediaSize.Height.Value)
+                        {
+                            left = 0;
+                            top = 0;
+                            goto NewPage;
+                        }
+
+                        page.Children.Remove(canvas);
+                        FixedPage.SetTop(canvas, top);
+                        FixedPage.SetLeft(canvas, left);
+                        lastFixedPage.Children.Add(canvas);
+                        lastFixedPage.Measure(new System.Windows.Size(ticket.PageMediaSize.Width.Value, ticket.PageMediaSize.Height.Value));
+                        lastFixedPage.Arrange(new Rect(new System.Windows.Point(0, 0), lastFixedPage.DesiredSize));
+                        lastFixedPage.UpdateLayout();
+                        left = left + width;
+                        goto NextRow;
+                    }
+                    
+
+                NewPage:
+                    FixedPage.SetTop(page, top);
+                    FixedPage.SetLeft(page, left);
+                    page.Measure(new System.Windows.Size(ticket.PageMediaSize.Width.Value, ticket.PageMediaSize.Height.Value));
+                    page.Arrange(new Rect(new System.Windows.Point(0, 0), page.DesiredSize));
+                    page.UpdateLayout();
+                    left += width;
+                    var pageContent = new PageContent();
+                    ((IAddChild)pageContent).AddChild(page);
+                    fixedDoc.Pages.Add(pageContent);
+                    string tsplCommands = GenerateTSPLCommands(page, ticket, printSettings);
+                    await tsplWriter.WriteLineAsync(tsplCommands);
+                NextRow: if (section.Key != CrystalReportSection.Details)
+                    {
+                        break;
+                    }
+                }
+                await producer.WaitAsync(token);
+            }
+        }
+        try
+        {
+            writer.Write(fixedDoc);
+
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error writing XPS document");
+            throw;
+        }
+        xps.CoreDocumentProperties.Description = "report output";
+        xps.Close();
+        await tsplWriter.DisposeAsync();
+        if (printSettings.Terminal)
+        {
+            await TsplPrintOnStaThreadAsync(printerName, tsplPath);
+        }
+        else
+        {
+            await PrintOnStaThreadAsync(printerName, xpsPath);
+        }
+
+    }
+
+    public async Task GenerateOnStaXPSDoc(
+        string connectionString,
+        string availableSources,
+        string jsonContent,
+        string xpsPath,
+        string tsplPath,
+        string printerName,
+        PrintTicket ticket,
+        PrintSettings printSettings,
+        CancellationToken token)
+    {
+        loader = new ImagePipelineLoader();
+        using var xps = new XpsDocument(xpsPath, FileAccess.Write);
+        var writer = XpsDocument.CreateXpsDocumentWriter(xps);
+        FixedDocument fixedDoc = new FixedDocument();
+        bool ForcePageBreakBefore = false;
+        bool prevForcePageBreakBefore = false;
+        var tsplWriter = new AsyncLineWriter(tsplPath);
+        var AvailableSources = JsonHelper.Deserialize<ObservableCollection<KeyValueItem>>(availableSources);
+        var report = JsonHelper.Deserialize<Dictionary<CrystalReportSection, TemplateRecord>>(jsonContent);
+        var header = GenerateTSPLCommands(null, ticket, printSettings);
+        await tsplWriter.WriteLineAsync(header);
 
         foreach (var section in report)
         {
@@ -908,44 +1046,68 @@ public static class TsplBitmapConverter
                 foreach (var obj in buffer.GetConsumingEnumerable(token))
                 {
                     var page = await CreatePageAsync(obj, modelType, template, ticket, printSettings);
-                    if ( fixedDoc.Pages.Count == 0)
+                    if (fixedDoc.Pages.Count == 0)
                     {
                         goto NewPage;
                     }
-                    if (fixedDoc.Pages.Count > 0  && prevForcePageBreakBefore)
+                    if (fixedDoc.Pages.Count > 0 && prevForcePageBreakBefore)
                     {
-                        prevForcePageBreakBefore=false;
+                        prevForcePageBreakBefore = false;
                         goto NewPage;
                     }
                     var canvas = page.Children.OfType<Canvas>().FirstOrDefault();
-                  
-                    double bottom = 0;
+
+                                      
                     var lastFixedPage = fixedDoc.Pages[fixedDoc.Pages.Count - 1].Child as FixedPage;
-                    if (lastFixedPage != null)
+                    double maxRight = 0;
+                    double maxBottom = 0;
+                    double maxTop = 0;
+                    foreach (Canvas child in lastFixedPage.Children.OfType<Canvas>())
                     {
-                        var rootCanvas = lastFixedPage.Children.OfType<Canvas>().FirstOrDefault();
-                        bottom = lastFixedPage.Children.OfType<Canvas>().Sum(c => c.Height);
-                        if (rootCanvas != null)
-                        {
-                            if (bottom + canvas.Height > ticket.PageMediaSize.Height.Value)
-                            {
-                                goto NewPage;
-                            }
-                            else
-                            {
-                                page.Children.Remove(canvas);
-                                Canvas.SetTop(canvas, bottom);
-                                FixedPage.SetTop(canvas, bottom);
-                                FixedPage.SetLeft(canvas, 0);
-                                lastFixedPage.Children.Add(canvas);
-                                lastFixedPage.Measure(new System.Windows.Size(ticket.PageMediaSize.Width.Value, ticket.PageMediaSize.Height.Value));
-                                lastFixedPage.Arrange(new Rect(new System.Windows.Point(0, 0), lastFixedPage.DesiredSize));
-                                lastFixedPage.UpdateLayout();
-                                goto NextRow;
-                            }
-                        }
+                        double left = Canvas.GetLeft(child);
+                        double width = (child as FrameworkElement)?.ActualWidth ?? 0;
+                        maxRight = Math.Max(maxRight, left + width);
+                        double top = Canvas.GetTop(child);
+                        double height = (child as FrameworkElement)?.ActualHeight ?? 0;
+                        maxBottom = Math.Max(maxBottom, top + height);
+                        maxTop = Math.Max(maxTop, top);
                     }
-                    
+
+                    if (maxTop + canvas.Height > ticket.PageMediaSize.Height.Value)
+                    {
+                        goto NewPage;
+                    }
+                    if (maxRight + canvas.Width > ticket.PageMediaSize.Width.Value )
+                    {
+                        maxRight=0;
+                    }
+                    if (maxRight + canvas.Width < ticket.PageMediaSize.Width.Value && maxTop + canvas.Height >= ticket.PageMediaSize.Height.Value)
+                    {
+                        goto NewPage;
+                    }
+
+                    if (maxRight + canvas.Width < ticket.PageMediaSize.Width.Value && maxTop + canvas.Height < ticket.PageMediaSize.Height.Value )
+                    {
+                        FixedPage.SetLeft(canvas, maxRight);
+                        FixedPage.SetTop(canvas, maxTop);
+                        page.Children.Remove(canvas);
+                        lastFixedPage.Children.Add(canvas);
+                        lastFixedPage.Measure(new System.Windows.Size(ticket.PageMediaSize.Width.Value, ticket.PageMediaSize.Height.Value));
+                        lastFixedPage.Arrange(new Rect(new System.Windows.Point(0, 0), lastFixedPage.DesiredSize));
+                        lastFixedPage.UpdateLayout();
+                        goto NextRow;
+                    }
+
+
+
+                    if (maxRight + canvas.Width > ticket.PageMediaSize.Width.Value)
+                    {
+                        goto NewPage;
+                    }
+                    else
+                    {
+                    }
+
 
                 NewPage: var pageContent = new PageContent();
                     ((IAddChild)pageContent).AddChild(page);
@@ -983,6 +1145,8 @@ public static class TsplBitmapConverter
         }
 
     }
+
+
     private int DotsToMm(double dots)
         {
             return (int)(dots / 96.0 * 25.4);
@@ -1423,6 +1587,19 @@ public static class TsplBitmapConverter
             double height = (child as FrameworkElement)?.ActualHeight ?? 0;
             maxBottom = Math.Max(maxBottom, top + height);
         }
+
+        double maxRight = 0;
+        foreach (UIElement child in canvas.Children)
+        {
+            double left = Canvas.GetLeft(child);
+            double width = (child as FrameworkElement)?.ActualWidth ?? 0;
+            maxRight = Math.Max(maxRight, left + width);
+        }
+        Canvas.SetLeft(canvas, 0);
+        Canvas.SetTop(canvas, 0);
+        Canvas.SetRight(canvas, maxRight);
+        Canvas.SetBottom(canvas, maxBottom);
+        canvas.Width = maxRight;
         canvas.Height = maxBottom;
         canvas.Measure(new Size(canvas.Width, canvas.Height));
         canvas.Arrange(new Rect(new System.Windows.Point(), new Size(canvas.Width, canvas.Height)));
@@ -1430,6 +1607,9 @@ public static class TsplBitmapConverter
         FixCanvasProperties(canvas);
 
         page.Children.Add(canvas); 
+        page.Measure(new Size(page.Width, page.Height));
+        page.Arrange(new Rect(new System.Windows.Point(), new Size(page.Width, page.Height)));
+        page.UpdateLayout();
         return page;
     }
 

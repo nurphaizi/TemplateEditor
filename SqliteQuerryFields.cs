@@ -24,7 +24,6 @@ public class SqliteQuerryFields
     public List<(string Name, System.Type type)> GetColumnNamesFromQuery(string connectionString, string sqlQuery)
     {
         var columnNames = new List<(string Name, System.Type type)>();
-
         // Используем 'using' для автоматического закрытия соединения и ридера
         using (var connection = new SQLiteConnection(connectionString))
         {

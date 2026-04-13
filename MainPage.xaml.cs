@@ -606,6 +606,10 @@ public partial class MainPage : Page, INotifyPropertyChanged
         {
             try
             {
+                if (querry.SourceType != DataSourceType.Database)
+                {
+                    continue;
+                }
                 var sqliteQuerryFields = new SqliteQuerryFields();
                 var columnNames = new List<KeyValueItem>();
                 sqliteQuerryFields.GetColumnNamesFromQuery(ConnectionString, querry.Value).ForEach(f => columnNames.Add(new KeyValueItem() { Key = f.Name, Value = f.Name }));
@@ -764,28 +768,6 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         }
     }
 
-    private void MenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        Image img = new Image();
-        img.Source = new BitmapImage(new Uri("/logo.png", UriKind.Relative));
-        img.Width = 50;
-        img.Height = 50;
-        img.AllowDrop = true;
-        img.Stretch = Stretch.UniformToFill;
-        img.ContextMenu = new ContextMenu();
-        img.ContextMenu.FontSize = 12;
-        //Удалить
-        MenuItem menuItem = new MenuItem() { Header = "Удалить" };
-        menuItem.Click += MenuItem_Click_Remove;
-        img.ContextMenu.Items.Add(menuItem);
-        //Размеры
-        MenuItem menuItemImageProperties = new MenuItem() { Header = "Свойства" };
-        menuItemImageProperties.Click += MenuItem_Click_ImageProperties;
-        img.ContextMenu.Items.Add(menuItemImageProperties);
-        templateCanvas.Children.Add(img);
-        Canvas.SetLeft(img, 100);
-        Canvas.SetTop(img, 100);
-    }
 
     public void MenuItem_Click_ImageProperties(object sender, RoutedEventArgs e)
     {
@@ -1504,33 +1486,6 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         }
     }
 
-    private void MenuItem_Click_HonistSign(object sender, RoutedEventArgs e)
-    {
-        Image img = new Image();
-        string svg = """
-            <svg data-name="logos / cz-logo-default" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M8.629 0h14.742c3 0 4.088.312 5.185.9A6.116 6.116 0 0 1 31.1 3.443c.587 1.1.9 2.185.9 5.185v14.743c0 3-.312 4.088-.9 5.185a6.116 6.116 0 0 1-2.543 2.544c-1.1.587-2.185.9-5.185.9H8.629c-3 0-4.088-.312-5.185-.9A6.116 6.116 0 0 1 .9 28.557c-.587-1.1-.9-2.185-.9-5.185V8.629c0-3 .312-4.088.9-5.185A6.116 6.116 0 0 1 3.443.9C4.54.312 5.628 0 8.629 0z" fill="#f2eb3b"/><path data-name="Fill 78" d="M23.993 6.492a1.527 1.527 0 0 1 1.521 1.527v3.791h3.179V8.019a4.709 4.709 0 0 0-4.7-4.709h-3.8v3.182z" fill="#63666a"/><path data-name="Fill 80" d="M25.514 24.001a1.523 1.523 0 0 1-1.521 1.52h-3.8v3.172h3.8a4.7 4.7 0 0 0 4.7-4.692v-3.808h-3.179z" fill="#63666a"/><path data-name="Fill 82" d="M6.485 8.018A1.527 1.527 0 0 1 8.01 6.492h3.8V3.31h-3.8a4.708 4.708 0 0 0-4.7 4.708v3.792h3.175z" fill="#63666a"/><path data-name="Fill 84" d="M8.01 25.522a1.524 1.524 0 0 1-1.523-1.52v-3.809H3.31v3.808a4.7 4.7 0 0 0 4.7 4.692h3.8v-3.171z" fill="#63666a"/><path data-name="Fill 86" d="M14.17 23.614l-6.777-6.783 2.242-2.243 4.535 4.536 8.194-8.2 2.242 2.244z" fill="#63666a"/></svg>
-            """;
-
-        img.Source = SvgStringToBitmapImageConverter.ConvertStringToBitMapImage(svg);
-        img.Width = 50;
-        img.Height = 50;
-        img.AllowDrop = true;
-        img.Stretch = Stretch.UniformToFill;
-        img.ContextMenu = new ContextMenu();
-        img.ContextMenu.FontSize = 12;
-        //Удалить
-        MenuItem menuItem = new MenuItem() { Header = "Удалить" };
-        menuItem.Click += MenuItem_Click_Remove;
-        img.ContextMenu.Items.Add(menuItem);
-        //Размеры
-        MenuItem menuItemRect = new MenuItem() { Header = "Размеры" };
-        menuItemRect.Click += MenuItem_Click_Rectangle;
-        img.ContextMenu.Items.Add(menuItemRect);
-
-        templateCanvas.Children.Add(img);
-        Canvas.SetLeft(img, 100);
-        Canvas.SetTop(img, 100);
-    }
     private void MenuItem_Click_QRCode(object sender, RoutedEventArgs e)
     {
         QRCodePropertiesFunction pageFunction = new QRCodePropertiesFunction();
@@ -1700,10 +1655,7 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
 
     }
 
-    private void MenuItem_Click_Service(object sender, RoutedEventArgs e)
-    {
-
-    }
+   
     private void MenuItem_Click_Printer(object sender, RoutedEventArgs e)
     {
         var navigationWindow = new NavigationWindow();
@@ -3287,6 +3239,7 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
 
     }
 
+   
     internal void MenuItem_Click_ChangeBarcode(object sender, RoutedEventArgs e)
     {
         MenuItem menuItem = sender as MenuItem;

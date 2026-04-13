@@ -222,6 +222,14 @@ public partial class QuerryDefFunction : PageFunction<String>, INotifyPropertyCh
                 {
                     var sqliteQuerryFields = new SqliteQuerryFields();
                     _availableFields.Clear();
+                    if(_querry==null||string.IsNullOrEmpty(_querry.Value) || string.IsNullOrWhiteSpace(_querry.Value))
+                    {
+                        return;
+                    }
+                    if(_querry.SourceType != DataSourceType.Database)
+                    {
+                        return;
+                    }
                     sqliteQuerryFields.GetColumnNamesFromQuery(ConnectionString, Querry.Value).ForEach(f => _availableFields.Add(new FieldDefinition() { Name = f.Name, type = f.type }));
                     OnPropertyChanged(nameof(AvailableFields));
                 }

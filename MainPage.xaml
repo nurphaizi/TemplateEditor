@@ -51,10 +51,8 @@
 
                 <MenuItem Header="Рисунок" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_AddImage"/>
                 <MenuItem Header="QR-код" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_QRCode"/>
-                <MenuItem Header="Логотип" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click"/>
-                <MenuItem Header="Честный знак" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_HonistSign"/>
                 <MenuItem Header="Конец этикетки" FontWeight="Normal" FontSize="8" FontFamily="Constantia" Click="MenuItem_Click_ForcedPageEject"/>
-                <MenuItem Header="Сервис" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_Service">
+                <MenuItem Header="Сервис" FontWeight="Normal" FontSize="12" FontFamily="Constantia">
                     <MenuItem Header="Источники данных с именами" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_DataSources"/>
                     <MenuItem Header="Выбор принтера" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_Printer"/>
                     <MenuItem Header="Шрифты принтера" FontWeight="Normal" FontSize="12" FontFamily="Constantia" Click="MenuItem_Click_PrinterFonts"/>
