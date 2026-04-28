@@ -7,16 +7,20 @@
       mc:Ignorable="d" 
       d:DesignHeight="450" d:DesignWidth="800"
       Title="Макет печати"
+      KeyDown="Window_KeyDown"
+      Focusable="True"
+      KeyUp="Window_KeyUp"
+
       KeepAlive="True">
     <Page.Resources>
         <local:ConverterDoubleToString x:Key="doubleToString"/>
         <local:ConverterStringToDouble x:Key="stringToDouble"/>
         <local:EnumDescriptionConverter x:Key="EnumDescriptionConverter"/>
+     
     </Page.Resources>
-    <Grid >
+    <Grid x:Name="rootGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="80"/>
-            <ColumnDefinition Width="580"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -59,7 +63,7 @@
                 </MenuItem>
             </Menu>
         </StackPanel>
-        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" VerticalAlignment="Center" Loaded="StackPanel_Loaded" >
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center"  >
             <Label Content="A" FontFamily="Arial" FontSize="24" FontWeight="Black"/>
             <Separator Margin="3" />
             <ComboBox x:Name="FontSelector" ToolTip="i Шрифт одного или нескольких текстовых объектов"  ItemsSource="{Binding Path=InstalledFonts,Mode=OneWay,UpdateSourceTrigger=PropertyChanged}"  SelectedItem="{Binding Path=_FontFamily, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="Source"   Width="95" SelectionChanged="FontSelector_SelectionChanged"/>
@@ -97,8 +101,7 @@
                 <Label Content="Секция"/>
                 <ComboBox x:Name="reportSectionSelector" ItemsSource="{Binding ReportSections,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" SelectedItem="{Binding SelectedSection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  Width="112"  Height="27"/>
         </StackPanel>
-        <ScrollViewer Visibility="Visible" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2">
-                <StackPanel Grid.Column="0"  Orientation="Horizontal">
+        <Border Grid.Column="0" Grid.Row="2"  BorderThickness="1" ClipToBounds="True" BorderBrush="Black" >
                 <ListBox  x:Name="reportSections"  Width="88"  
                  ItemsSource="{Binding ReportSections,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
                  SelectedItem="{Binding SelectedSection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
@@ -132,18 +135,85 @@
                         </ContextMenu>
                     </ListBox.ContextMenu>
                 </ListBox>
-                <Border x:Name="templateCanvasBorder"   Grid.Column="1" Grid.Row="2"
-                    Width="{Binding Path=_PageSize.Width,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
-                    Height="{Binding Path=_PageSize.Height,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"                    
-                    BorderThickness="2" ClipToBounds="True" BorderBrush="Black" Grid.ColumnSpan="2">
-                    <Canvas x:Name="templateCanvas"  
-                        Background="White" AllowDrop="True"/>
-                </Border>
-            </StackPanel>
-        </ScrollViewer>
-        
-      
+        </Border>
+
+        <Grid Grid.Row="2" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30"/>
+                <!-- горизонтальная линейка -->
+                <RowDefinition Height="*"/>
+                <!-- рабочая область -->
+            </Grid.RowDefinitions>
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="30"/>
+                <!-- вертикальная линейка -->
+                <ColumnDefinition Width="*"/>
+                <!-- рабочая область -->
+                <ColumnDefinition Width="30"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Горизонтальная линейка -->
+            <Canvas x:Name="HorizontalRuler" Grid.Row="0" Grid.Column="1" Height="30" Background="#EEE">
+                <Canvas.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding Zoom,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" ScaleY="1.0"/>
+                </Canvas.LayoutTransform>
+            </Canvas>
+            <Label Content="mm" Grid.Row="0" Grid.Column="0">
+                <Label.LayoutTransform>
+                    <RotateTransform Angle="270" />
+                </Label.LayoutTransform>
+            </Label>
+            <Label Content="mm" Grid.Row="0" Grid.Column="2"/>
+
+            <!-- Вертикальная линейка -->
+            <Canvas x:Name="VerticalRuler" Grid.Row="1" Grid.Column="0"  Width="30" Background="#EEE">
+                <Canvas.LayoutTransform>
+                    <ScaleTransform ScaleX="1.0" ScaleY="{Binding Zoom,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                </Canvas.LayoutTransform>
+            </Canvas>
+            
+            <!-- Прокручиваемая область -->
+            <ScrollViewer x:Name="Scroll"
+                  Grid.Row="1" Grid.Column="1"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto"
+                  ScrollChanged="Scroll_OnScrollChanged">
+                <Canvas x:Name="WorkCanvas"
+                Width="2000"
+                Height="1500"
+                Background="Azure"
+                MouseMove="WorkCanvas_OnMouseMove"
+                MouseLeave="WorkCanvas_OnMouseLeave">
+                    <Border x:Name="templateCanvasBorder" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                        BorderThickness="1" ClipToBounds="True" BorderBrush="Black">
+                        <Canvas x:Name="templateCanvas" Background="White" AllowDrop="True" >
+                            <Canvas.LayoutTransform>
+                                <ScaleTransform x:Name="canvasScale"  ScaleX="{Binding Zoom,Mode=OneWay,UpdateSourceTrigger=PropertyChanged}"
+                                                ScaleY="{Binding Zoom,Mode=OneWay,UpdateSourceTrigger=PropertyChanged}"/>
+                            </Canvas.LayoutTransform>
+                        </Canvas>
+                    </Border>
+                </Canvas>
+            </ScrollViewer>
+        </Grid>
         <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <StatusBar  >
+                <StatusBarItem>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox x:Name="statusZoom" ItemsSource="{Binding ZoomLevels}"
+                                   Text="{Binding Zoom,Mode=OneWay,UpdateSourceTrigger=PropertyChanged, ConverterParameter='%',Converter={StaticResource doubleToString}}"
+                                   SelectedValue="{Binding Zoom, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                                   SelectedValuePath="Value"
+                                   DisplayMemberPath="Display"
+                                   IsEnabled="True"
+                                   IsEditable="True"
+                                   LostFocus="StatusZoom_LostFocus" Width="60" IsSynchronizedWithCurrentItem="False"/>
+                        <Separator Margin="5,0" />
+                        <TextBlock x:Name="StatusText" />
+                    </StackPanel>
+                </StatusBarItem>
+            </StatusBar>
             <Button x:Name="btPrint" Content="Печать" Width="140" Click="btPrint_Click" />
             <Separator Width="3"/>
             <Button x:Name="btOpen" Content="Открыть отчет" Width="140" Click="Button_Click_Open"/>

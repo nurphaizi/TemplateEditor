@@ -374,7 +374,7 @@ public class CanvasElement
         set;
     }
 }
-public class TextBoxCanvasElement 
+public class TextBoxCanvasElement
 {
     public required string Name
     {
@@ -517,8 +517,16 @@ public class TextBoxCanvasElement
     {
         get; set;
     }
+    public double BorderThickness
+    {
+        get; set;
+    }
+    public string BorderBrush  //System.Windows.Media.Brush
+    {
+        get; set;
+    }
 }
-public class ImageCanvasElement
+    public class ImageCanvasElement
 {
     public string Name
     {

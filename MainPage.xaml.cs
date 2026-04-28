@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.IO;
 using System.Net.Http.Json;
@@ -45,6 +46,28 @@ namespace TemplateEdit;
 /// Interaction logic for MainPage.xaml
 /// </summary>
 public record ReportSections (ObservableCollection<CrystalReportSection> Sections,CrystalReportSection CrystalReportSection);
+public class DoubleToThicknessConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value != null)
+        {
+            return new Thickness(System.Convert.ToDouble(value));
+        }
+
+        return value;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value != null)
+        {
+            return ((Thickness)value).Top; // Assuming you want to convert back to a double representing the left thickness    
+        }
+
+        return value;
+    }
+}
 
 [ValueConversion(typeof(Point[]), typeof(PointCollection))]
 public class PointsToPointCollectionConverter : IValueConverter
@@ -80,6 +103,48 @@ public class EnumDescriptionConverter : IValueConverter
         => throw new NotImplementedException();
 }
 
+public class ZoomConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        double modelValue = System.Convert.ToDouble(value);
+        double zoom = System.Convert.ToDouble(parameter);
+        return modelValue * zoom;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        double visualValue = System.Convert.ToDouble(value);
+        double zoom = System.Convert.ToDouble(parameter);
+        return visualValue / zoom;
+    }
+}
+
+public class ZoomBindingConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (values[0] == DependencyProperty.UnsetValue ||
+            values[1] == DependencyProperty.UnsetValue)
+            return 0.0;
+
+        double modelValue = System.Convert.ToDouble(values[0]);
+        double zoom = System.Convert.ToDouble(values[1]);
+        return modelValue * zoom; // визуальное значение
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    {
+        double visualValue = System.Convert.ToDouble(value);
+        double zoom = System.Convert.ToDouble(parameter );
+        return new object[]
+        {
+            visualValue / zoom, // модель получает реальное значение
+            Binding.DoNothing   // Zoom не изменяем
+        };
+    }
+}
+
 public class RelayCommand : ICommand
 {
     private readonly Action<object> _execute;
@@ -100,6 +165,14 @@ public class RelayCommand : ICommand
         => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
 
+public class ZoomItem
+{
+    public double Value
+    {
+        get; set;
+    }
+    public string Display => $"{Value * 100:0}%";
+}
 
 public partial class MainPage : Page, INotifyPropertyChanged
 {
@@ -109,7 +182,14 @@ public partial class MainPage : Page, INotifyPropertyChanged
     public Point startPoint;
     public AdornerLayer adornerLayer;
     public event PropertyChangedEventHandler PropertyChanged;
+    private double[] zoomLeveles = { 8,5,4,3,2,1.5,1,0.6667,0.5,0.3333,0.25,0.15 };
 
+    public ObservableCollection<ZoomItem> ZoomLevels
+    {
+        get;set;
+    }
+
+   
     // This method is called by the Set accessor of each property.
     // The CallerMemberName attribute that is applied to the optional propertyName
     // parameter causes the property name of the caller to be substituted as an argument.
@@ -118,6 +198,21 @@ public partial class MainPage : Page, INotifyPropertyChanged
         if (PropertyChanged != null)
         {
             PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+   
+
+    private static readonly DependencyProperty ZoomProperty = DependencyProperty.Register("Zoom"
+     , typeof(double), typeof(MainPage)
+     , new FrameworkPropertyMetadata(1.0 , FrameworkPropertyMetadataOptions.AffectsRender));
+    public double Zoom
+    {
+        get => (double)GetValue(ZoomProperty);
+        set
+        {
+            SetValue(ZoomProperty, value);
+            NotifyPropertyChanged(nameof(Zoom));
         }
     }
 
@@ -214,6 +309,16 @@ public partial class MainPage : Page, INotifyPropertyChanged
         {
             _BarcodeImage = value;
             NotifyPropertyChanged(nameof(BarcodeImage));
+        }
+    }
+    private double _CanvasScale = 100.0;
+    public double CanvasScale
+    {
+        get => (double)_CanvasScale;
+        set
+        {
+            _CanvasScale = value;
+            NotifyPropertyChanged(nameof(CanvasScale));
         }
     }
 
@@ -538,8 +643,17 @@ public partial class MainPage : Page, INotifyPropertyChanged
         AddSpecificCommand = new RelayCommand(param => AddSpecific(param)); 
         RemoveCommand = new RelayCommand(_ => Remove(), _ => SelectedSection != null);
         SetReportSectionCommand = new RelayCommand(param => SetReportSection(param));
+        ZoomLevels = new ObservableCollection<ZoomItem>();
+        foreach (var level in zoomLeveles)
+        {
+            ZoomLevels.Add(new ZoomItem() { Value = level });
+        }
+        Zoom = 1.0; // default 100%
+
         InitializeComponent();
+
         this.Loaded += MainPage_OnLoaded;
+        this.Loaded+=StackPanel_Loaded;
         DataContext = this;
 
     }
@@ -553,6 +667,8 @@ public partial class MainPage : Page, INotifyPropertyChanged
         this.MouseLeave += MainPage_MouseLeave;
         templateCanvas.PreviewMouseLeftButtonDown += TemplateCanvas_PreviewMouseLeftButtonDown;
         templateCanvas.PreviewMouseLeftButtonUp += TemplateCanvas_PreviewMouseLeftButtonUp;
+        templateCanvas.MouseWheel += WorkCanvas_PreviewMouseWheel;
+        this.Loaded -= MainPage_OnLoaded;
     }
 
     private string _ConnectionString;
@@ -742,25 +858,18 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
 
             //adding adorner on selected element
             adornerLayer = AdornerLayer.GetAdornerLayer(selectedElement);
+
             switch (selectedElement)
             {
                 case Line:
-                    originalLeft = (selectedElement as Line).X1;
-                    originalTop = (selectedElement as Line).Y1;
-                    adornerLayer.Add(new ResizingAdorner(selectedElement));
+                    adornerLayer.Add(new LineAdorner((Line)selectedElement));
                     break;
                 case Polygon:
                     var polygon = selectedElement as Polygon;
-                    //var points = polygon.Points.Select(p => new Point(p.X , p.Y)).ToArray();
-                    //originalLeft = points.Min(p => p.X);
-                    //originalTop = points.Min(p => p.Y);
-                    //Canvas.SetLeft(polygon,originalLeft);
-                    //Canvas.SetTop(polygon, originalTop);
-
                     adornerLayer.Add(new PolygonAdorner(polygon));
                     break;
                 default:
-                    adornerLayer.Add(new BorderAdorner(selectedElement));
+                    adornerLayer.Add(new BorderAdorner(selectedElement ));
                     break;
             }
             isSelected = true;
@@ -909,8 +1018,8 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         var rectangleFigure = new RectangleFigureProperties()
         {
             Name = xKey,
-            Width = 100,
-            Height = 50,
+            Width = PageSize.Width/3,
+            Height = PageSize.Height/3,
             Fill = BackgroundColor,
             Stroke = ForegroundColor,
             StrokeThickness = 1,
@@ -918,8 +1027,8 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
             RadiusX = 0,
             RadiusY = 0,
             Angle = 0.0,
-            Left = 50,
-            Top = 50,
+            Left = (PageSize.Width)/3,
+            Top = (PageSize.Height) / 3,
             Opacity=1
         };
 
@@ -928,8 +1037,8 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         Rectangle rect = new Rectangle
         {
             Name = xKey,
-            Width = 100,
-            Height = 50,
+            Width = rectangleFigure.Width,
+            Height = rectangleFigure.Height,
             Fill = new SolidColorBrush(BackgroundColor),
             Stroke = new SolidColorBrush(ForegroundColor),
             StrokeThickness = 1,
@@ -940,7 +1049,7 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         };
 
         // Set position on the Canvas
-        var origin = new Point(50,50);
+        var origin = new Point(rectangleFigure.Left, rectangleFigure.Top);
         Canvas.SetLeft(rect, origin.X);
         Canvas.SetTop(rect, origin.Y);
         SetBindingRectangleProperties(ref rect);
@@ -1088,11 +1197,13 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
                         AcceptsReturn = false,
                         Foreground = ForegroundColor,
                         Background = BackgroundColor,
-                        Left = 0,
-                        Top = 0,
+                        Left = (PageSize.Width-width)/2,
+                        Top = (PageSize.Height - height) / 2,
                         TextAlignment = TextAlignment.Left,
                         HorizontalAlignment = HorizontalAlignment.Left,
-                        VerticalAlignment = VerticalAlignment.Top
+                        VerticalAlignment = VerticalAlignment.Top,
+                        BorderThickness = 0,
+                        BorderColor = System.Windows.Media.Colors.Transparent,
                     }
                 )          
             );
@@ -1169,34 +1280,19 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         var lineProperties = new LineProperties();
         var k = templateCanvas.Children.OfType<Line>().Count();
         var lastLine = templateCanvas.Children.OfType<Line>().LastOrDefault();
-        if (lastLine != null)
-        {
-            lineProperties.X1 = lastLine.X1 + 10;
-            lineProperties.Y1 = lastLine.Y1 + 10;
-            lineProperties.X2 = lastLine.X2 + 10;
-            lineProperties.Y2 = lastLine.Y2 + 10;
-            lineProperties.Angle = lastLine.RenderTransform is RotateTransform rt ? rt.Angle : 0;
-            lineProperties.Angle+=5;
-        }
-        else
-        {
-            lineProperties.X1 = 10;
-            lineProperties.Y1 = 10;
-            lineProperties.X2 = 100;
-            lineProperties.Y2 = 100;
-            lineProperties.Angle = 5;
-        }
-
+        lineProperties.X1 = 2;
+        lineProperties.Y1 = 1;
+        lineProperties.X2 = 15 ;
+        lineProperties.Y2 = 10; ;
+        lineProperties.Angle = 5;
         lineProperties.Name = "Line" + k;
         lineProperties.Stroke = ForegroundColor;
         lineProperties.StrokeThickness = 1;
-        lineProperties.Left = lineProperties.X1;
-        lineProperties.Top = lineProperties.Y1;
+        lineProperties.Left = 0;
+        lineProperties.Top = 0;
         Lines[lineProperties.Name] = lineProperties;
         var line = new Line();
         line.Name = lineProperties.Name;
-        Canvas.SetLeft(line, lineProperties.X1);
-        Canvas.SetTop(line, lineProperties.Y1);
         SetBindingLineProperties(ref line);
         foreach (var bindingexp in line.BindingGroup.BindingExpressions)
         {
@@ -1226,14 +1322,14 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         {
             Name = line.Name,
             Type = "Line",
-            X1 = line.X1,
-            Y1 = line.Y1,
-            X2 = line.X2,
-            Y2 = line.Y2,
-            Left = line.X1,
-            Top = line.Y1,
-            Width = Math.Abs(line.X2 - line.X1),
-            Height= Math.Abs(line.Y2 - line.Y1),
+            X1 = lineProperties.X1,
+            Y1 = lineProperties.Y1,
+            X2 = lineProperties.X2,
+            Y2 = lineProperties.Y2,
+            Left = 0,
+            Top = 0,
+            Width = Math.Abs(lineProperties.X2 - lineProperties.X1),
+            Height= Math.Abs(lineProperties.Y2 - lineProperties.Y1),
             Stroke = JsonHelper.Serialize<Brush>(line.Stroke),
             StrokeThickness = line.StrokeThickness,
             StrokeStartLineCap = JsonHelper.Serialize<PenLineCap>(line.StrokeStartLineCap),
@@ -1323,8 +1419,6 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
             var line = templateCanvas.Children.OfType<Line>().FirstOrDefault(r => r.Name.Equals(lineFigure.Name,StringComparison.OrdinalIgnoreCase));
             if (line != null)
             {
-                Canvas.SetLeft(line, lineFigure.X1);
-                Canvas.SetTop(line, lineFigure.Y1);
                 BindingOperations.ClearAllBindings(line);
                 SetBindingLineProperties(ref line);
                 foreach(var bindingExp in line.BindingGroup.BindingExpressions)
@@ -1336,16 +1430,16 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
                 {
                     Name = line.Name,
                     Type = "Line",
-                    X1 = line.X1,
-                    Y1 = line.Y1,
-                    X2 = line.X2,
-                    Y2 = line.Y2,
-                    Left = line.X1,
-                    Top = line.Y1,
-                    Width = Math.Abs(line.X2 - line.X1),
-                    Height = Math.Abs(line.Y2 - line.Y1),
+                    X1 = lineFigure.X1,
+                    Y1 = lineFigure.Y1,
+                    X2 = lineFigure.X2,
+                    Y2 = lineFigure.Y2,
+                    Left = lineFigure.X1,
+                    Top = lineFigure.Y1,
+                    Width = Math.Abs(lineFigure.X2 - lineFigure.X1),
+                    Height = Math.Abs(lineFigure.Y2 - lineFigure.Y1),
                     Stroke = JsonHelper.Serialize<Brush>(line.Stroke),
-                    StrokeThickness = line.StrokeThickness,
+                    StrokeThickness = lineFigure.StrokeThickness,
                     StrokeStartLineCap = JsonHelper.Serialize<PenLineCap>(line.StrokeStartLineCap),
                     StrokeEndLineCap = JsonHelper.Serialize<PenLineCap>(line.StrokeEndLineCap),
                 });
@@ -1778,8 +1872,13 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         bindingX1.Source = Lines;
         bindingX1.Path = new PropertyPath("[" + lineFigure.Name + "].X1");
         bindingX1.Mode = BindingMode.TwoWay;
-        bindingX1.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        bindingX1.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged; 
         line.SetBinding(Line.X1Property, bindingX1);
+
+
+//
+//  Y1
+//
 
         Binding bindingY1 = new Binding();
         bindingY1.Source = Lines;
@@ -1788,6 +1887,9 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         bindingY1.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
         line.SetBinding(Line.Y1Property, bindingY1);
 
+        //
+        // X2
+        //
         Binding bindingX2 = new Binding();
         bindingX2.Source = Lines;
         bindingX2.Path = new PropertyPath("[" + lineFigure.Name + "].X2");
@@ -1795,6 +1897,9 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         bindingX2.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
         line.SetBinding(Line.X2Property, bindingX2);
 
+        //
+        // Y2
+        //
         Binding bindingY2 = new Binding();
         bindingY2.Source = Lines;
         bindingY2.Path = new PropertyPath("[" + lineFigure.Name + "].Y2");
@@ -1819,21 +1924,28 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         var rotate = new RotateTransform();
         BindingOperations.SetBinding(rotate, RotateTransform.AngleProperty, bindingAngle);
         line.RenderTransform = rotate;
+       
+        //
+        // Left
+        //
+
 
         Binding bindingLeft = new Binding()
         {
-            Mode = BindingMode.TwoWay,
             Source = Lines,
             Path = new PropertyPath("[" + lineFigure.Name + "].Left"),
-            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+            Mode = BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
         };
         BindingOperations.SetBinding(line, Canvas.LeftProperty, bindingLeft);
+
+
         Binding bindingTop = new Binding()
         {
-            Mode = BindingMode.TwoWay,
             Source = Lines,
             Path = new PropertyPath("[" + lineFigure.Name + "].Top"),
-            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+            Mode = BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
         };
         BindingOperations.SetBinding(line, Canvas.TopProperty, bindingTop);
     }
@@ -1848,20 +1960,24 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         bindingWidth.Mode = BindingMode.TwoWay;
         bindingWidth.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
         rectangle.SetBinding(Rectangle.WidthProperty, bindingWidth);
-        BindingOperations.SetBinding(rectangle, Canvas.LeftProperty, new Binding()
+
+        var bindingLeft = new Binding()
         {
             Source = RectangleFigures,
             Path = new PropertyPath("[" + rectangleFigure.Name + "].Left"),
             Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-        });
-        BindingOperations.SetBinding(rectangle, Canvas.TopProperty, new Binding()
+        };
+        BindingOperations.SetBinding(rectangle, Canvas.LeftProperty, bindingLeft);
+
+        var bindingTop = new Binding()
         {
             Source = RectangleFigures,
             Path = new PropertyPath("[" + rectangleFigure.Name + "].Top"),
             Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-        });
+        };
+        BindingOperations.SetBinding(rectangle, Canvas.TopProperty, bindingTop);
 
         Binding bindingHeight = new Binding();
         bindingHeight.Source = RectangleFigures;
@@ -1869,7 +1985,6 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         bindingHeight.Mode = BindingMode.TwoWay;
         bindingHeight.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
         rectangle.SetBinding(Rectangle.HeightProperty, bindingHeight);
-
 
         Binding bindingThickness = new Binding();
         bindingThickness.Source = RectangleFigures;
@@ -2001,19 +2116,6 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
             Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
         });
-        Binding bindingWidth = new Binding();
-        bindingWidth.Source = TextFieldProperties;
-        bindingWidth.Path = new PropertyPath("[" + textFieldValue.Name + "].Width");
-        bindingWidth.Mode = BindingMode.TwoWay;
-        bindingWidth.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
-        textBox.SetBinding(TextBox.WidthProperty, bindingWidth);
-
-        Binding bindingHeight = new Binding();
-        bindingHeight.Source = TextFieldProperties;
-        bindingHeight.Path = new PropertyPath("[" + textFieldValue.Name + "].Height");
-        bindingHeight.Mode = BindingMode.TwoWay;
-        bindingHeight.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
-        textBox.SetBinding(TextBox.HeightProperty, bindingHeight);
 
         Binding bindingFontFamily = new Binding();
         bindingFontFamily.Source = TextFieldProperties;
@@ -2037,6 +2139,14 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         bindingForeground.Mode = BindingMode.TwoWay;
         bindingForeground.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
         textBox.SetBinding(TextBox.ForegroundProperty, bindingForeground);
+
+        Binding bindingBorderColor = new Binding();
+        bindingBorderColor.Source = TextFieldProperties;
+        bindingBorderColor.Converter = new ColorToSolidColorBrushConverter();
+        bindingBorderColor.Path = new PropertyPath("[" + textFieldValue.Name + "].BorderColor");
+        bindingBorderColor.Mode = BindingMode.TwoWay;
+        bindingBorderColor.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        textBox.SetBinding(TextBox.BorderBrushProperty, bindingBorderColor) ;
 
         Binding bindingAlignment = new Binding();
         bindingAlignment.Source = TextFieldProperties;
@@ -2077,21 +2187,59 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
         bindingAngle.Path = new PropertyPath("[" + textFieldValue.Name + "].Angle");
         textBox.SetBinding(TextBox.RenderTransformProperty, bindingAngle);
 
+        Binding bindingThickness = new Binding();
+        bindingThickness.Source = TextFieldProperties;
+        bindingThickness.Converter = new DoubleToThicknessConverter();
+        bindingThickness.Path = new PropertyPath("[" + textFieldValue.Name + "].BorderThickness");
+        bindingThickness.Mode = BindingMode.TwoWay;
+        bindingThickness.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        textBox.SetBinding(TextBox.BorderThicknessProperty , bindingThickness);
+
+        //
+        // Width
+        //
+        Binding bindingWidth = new Binding();
+        bindingWidth.Source = TextFieldProperties;
+        bindingWidth.Path = new PropertyPath("[" + textFieldValue.Name + "].Width");
+        bindingWidth.Mode = BindingMode.TwoWay;
+        bindingWidth.UpdateSourceTrigger= UpdateSourceTrigger.PropertyChanged;  
+        textBox.SetBinding(TextBox.WidthProperty, bindingWidth);
+
+        //
+        // Height
+        //
+
+        Binding bindingHeight = new Binding();
+        bindingHeight.Source = TextFieldProperties;
+        bindingHeight.Path = new PropertyPath("[" + textFieldValue.Name + "].Height");
+        bindingHeight.Mode = BindingMode.TwoWay;
+        bindingHeight.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        textBox.SetBinding(TextBox.HeightProperty, bindingHeight);
+
+
+        //
+        // Left
+        //
+
         Binding bindingLeft = new Binding()
         {
-            Mode = BindingMode.TwoWay,
             Source = TextFieldProperties,
             Path = new PropertyPath("[" + textFieldValue.Name + "].Left"),
+            Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
         };
-        BindingOperations.SetBinding(textBox,Canvas.LeftProperty, bindingLeft);
 
+        BindingOperations.SetBinding(textBox,Canvas.LeftProperty, bindingLeft);
+        //
+        // Top
+        //
         Binding bindingTop = new Binding()
         {
-            Mode = BindingMode.TwoWay,
             Source = TextFieldProperties,
             Path = new PropertyPath("[" + textFieldValue.Name + "].Top"),
+            Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+
         };
         BindingOperations.SetBinding(textBox, Canvas.TopProperty, bindingTop);
     }
@@ -2431,7 +2579,9 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
                 FontWeight = string.IsNullOrWhiteSpace(textBoxElement.FontWeight) ?System.Windows.FontWeights.Normal: JsonHelper.Deserialize<System.Windows.FontWeight>(textBoxElement.FontWeight),
                 FontStretch = string.IsNullOrWhiteSpace(textBoxElement.FontStretch) ?System.Windows.FontStretches.Normal:JsonHelper.Deserialize<System.Windows.FontStretch>(textBoxElement.FontStretch),
                 TextWrapping = string.IsNullOrWhiteSpace(textBoxElement.TextWrapping) ? System.Windows.TextWrapping.NoWrap:JsonHelper.Deserialize<TextWrapping>(textBoxElement.TextWrapping),
-                RenderTransform = new RotateTransform(textBoxElement.Angle)
+                RenderTransform = new RotateTransform(textBoxElement.Angle),
+                BorderThickness = new Thickness(0),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
             };
             Canvas.SetLeft(textBox, textBoxElement.Left);
             Canvas.SetTop(textBox, textBoxElement.Top);
@@ -2783,8 +2933,7 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
                 ImageSourceString = img.Source is BitmapSource bitmapSource ? ImageCanvasElement.ImageToBase64(bitmapSource) : string.Empty,
             }
         );
-
-    }
+;    }
 
     private void MenuItem_Click_AddBarCode(object sender, RoutedEventArgs e)
     {
@@ -2862,8 +3011,64 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
             }
         );
     }
+
+    private RulerCursorAdorner _cursorAdorner;
+    private AdornerLayer _adornerLayer;
+    private bool _cursorEnabled = true;
+
+    private RulerAdorner _hRulerAdorner;
+    private RulerAdorner _vRulerAdorner;
+    private AdornerLayer _hLayer;
+    private AdornerLayer _vLayer;
+
+
+    public void EnableCursorLines()
+    {
+        if (_cursorEnabled)
+            return;
+
+        _adornerLayer.Add(_cursorAdorner);
+        _cursorEnabled = true;
+    }
+
+    public void DisableCursorLines()
+    {
+        if (!_cursorEnabled)
+            return;
+
+        _adornerLayer.Remove(_cursorAdorner);
+        _cursorEnabled = false;
+    }
+    private void ToggleCursorLines_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cursorEnabled)
+            DisableCursorLines();
+        else
+            EnableCursorLines();
+    }
+    //Масштабируем только TemplateCanvas
+    private void WorkCanvas_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Keyboard.IsKeyDown(Key.LeftCtrl))
+        {
+            e.Handled = true;
+            double delta = e.Delta > 0 ? 0.1 : -0.1;
+            Zoom = Math.Clamp(Zoom + delta, 0.15, 8);
+            statusZoom.SelectedValue = new ZoomItem() { Value = Zoom };
+
+            RedrawRulers(); // адаптивные линейки
+        }
+    }
+
+    private void RedrawRulers()
+    {
+        DrawHorizontalRulerMm();
+        DrawVerticalRulerMm();
+    }
+
     private void StackPanel_Loaded(object sender, RoutedEventArgs e)
     {
+        this.Loaded-= StackPanel_Loaded;
         var printer = Properties.Settings.Default.barcodePrinter;
         if (string.IsNullOrWhiteSpace(printer))
         {
@@ -2897,18 +3102,33 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
 
         if (ticket.PageOrientation == PageOrientation.Landscape || ticket.PageOrientation == PageOrientation.ReverseLandscape)
         {
-            templateCanvasBorder.SetValue(HeightProperty, ticket.PageMediaSize.Width);
-            templateCanvasBorder.SetValue(WidthProperty, ticket.PageMediaSize.Height);
+            templateCanvas.SetValue(HeightProperty, ticket.PageMediaSize.Width);
+            templateCanvas.SetValue(WidthProperty, ticket.PageMediaSize.Height);
             PageSize = new Size((double)ticket.PageMediaSize.Height, (double)ticket.PageMediaSize.Width);
         }
         else
         {
-            templateCanvasBorder.SetValue(WidthProperty, ticket.PageMediaSize.Width);
-            templateCanvasBorder.SetValue(HeightProperty, ticket.PageMediaSize.Height);
+            templateCanvas.SetValue(WidthProperty, ticket.PageMediaSize.Width);
+            templateCanvas.SetValue(HeightProperty, ticket.PageMediaSize.Height);
             PageSize = new Size((double)ticket.PageMediaSize.Width, (double)ticket.PageMediaSize.Height);
         }
+        Zoom = 450/PageSize.Height;
+        statusZoom.SelectedValue = new ZoomItem() { Value = Zoom };
+        DrawHorizontalRulerMm();
+        DrawVerticalRulerMm();
+        _adornerLayer = AdornerLayer.GetAdornerLayer(WorkCanvas);
+        _cursorAdorner = new RulerCursorAdorner(WorkCanvas);
+        this.Focus(); // важно для обработки F8
+
+        _hLayer = AdornerLayer.GetAdornerLayer(HorizontalRuler);
+        _hRulerAdorner = new RulerAdorner(HorizontalRuler, Orientation.Horizontal);
+        _hLayer.Add(_hRulerAdorner);
+
+        _vLayer = AdornerLayer.GetAdornerLayer(VerticalRuler);
+        _vRulerAdorner = new RulerAdorner(VerticalRuler, Orientation.Vertical);
+        _vLayer.Add(_vRulerAdorner);
     }
-    
+
 
     private void MenuItem_Click_AddTextBlock(object sender, RoutedEventArgs e)
     {
@@ -2950,6 +3170,7 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
             return;
         }
         int k = templateCanvas.Children.OfType<TextBox>().Count();
+         
         var xKey = "TextBox" + k.ToString();
         textFieldProperties.Name = xKey;
         TextFieldProperties[xKey] = textFieldProperties;
@@ -2970,7 +3191,10 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
             TextAlignment = textFieldProperties.TextAlignment,
             HorizontalAlignment = textFieldProperties.HorizontalAlignment,
             VerticalAlignment = textFieldProperties.VerticalAlignment,
+            BorderThickness = new Thickness(textFieldProperties.BorderThickness),
+            BorderBrush = new SolidColorBrush(textFieldProperties.BorderColor),
         };
+        
         //Удалить
         textBox.ContextMenu = new ContextMenu();
         textBox.ContextMenu.FontSize = 12;
@@ -3017,6 +3241,8 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
             Text = textFieldProperties.Value,
             HorizontalAlignment = JsonHelper.Serialize<HorizontalAlignment>(textFieldProperties.HorizontalAlignment),
             VerticalAlignment = JsonHelper.Serialize<VerticalAlignment>(textFieldProperties.VerticalAlignment),
+            BorderThickness = textFieldProperties.BorderThickness,
+            BorderBrush = JsonHelper.Serialize(textFieldProperties.BorderColor)
         });
 
     }
@@ -3131,8 +3357,10 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
                 ReportSections.Add(section);
             }
             var templateRecord = Report[ReportSections.First()];
+          
             LoadTemplate(ref templateRecord);
             SelectedSection = ReportSections.First();
+            Zoom = 1.0;
         }
 
     }
@@ -3307,5 +3535,176 @@ private void MainPage_MouseLeftButtonDown(object sender, System.Windows.Input.Mo
     }
 
     internal void MenuItem_Click_Rectangle(object sender, RoutedEventArgs e) => throw new NotImplementedException();
+    private void Scroll_OnScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        // Горизонтальная линейка смещается по X
+        Canvas.SetLeft(HorizontalRuler, -Scroll.HorizontalOffset);
+
+        // Вертикальная линейка смещается по Y
+        Canvas.SetTop(VerticalRuler, -Scroll.VerticalOffset);
+    }
+    private void WorkCanvas_OnMouseMove(object sender, MouseEventArgs e)
+    {
+        var pos = e.GetPosition(WorkCanvas);
+
+        // Учитываем прокрутку ScrollViewer
+        double x = pos.X - Scroll.HorizontalOffset;
+        double y = pos.Y - Scroll.VerticalOffset;
+
+        var posT = e.GetPosition(templateCanvas);
+        StatusText.Text = $"X: {posT.X:0}, Y: {posT.Y:0}";
+        _cursorAdorner.X = pos.X;
+        _cursorAdorner.Y = pos.Y;
+        _cursorAdorner.InvalidateVisual();
+
+        _hRulerAdorner.Position = pos.X/Zoom;
+        _hRulerAdorner.InvalidateVisual();
+
+        _vRulerAdorner.Position = pos.Y/Zoom;
+        _vRulerAdorner.InvalidateVisual();  
+    }
+
+    private void WorkCanvas_OnMouseLeave(object sender, MouseEventArgs e)
+    {
+        //HorizontalCursor.Visibility = System.Windows.Visibility.Collapsed;
+        //VerticalCursor.Visibility = System.Windows.Visibility.Collapsed;
+        _cursorAdorner.X = -1000;
+        _cursorAdorner.Y = -1000;
+        _cursorAdorner.InvalidateVisual();
+    }
+
+    const double Dpi = 96.0;
+    const double MmPerInch = 25.4;
+    const double PxPerMm = Dpi / MmPerInch;      // ≈ 3.7795
+    const double MmPerPx = MmPerInch / Dpi;      // ≈ 0.264583
+    //30x20 mm
+    public double WidthPx = 30 * 3.779527559;    //≈ 113.385 px
+    public double HeightPx = 20 * 3.779527559;   // ≈ 75.590 px   
+                                                 // 58x40 mm
+                                                 //public double WidthPx = 58 * 3.779527559;    //≈ 219.212 px
+                                                 //public double HeightPx = 40 * 3.779527559;   // ≈ 151.181 px
+                                                 //58x60 mm
+                                                 //public double WidthPx = 58 * 3.779527559;    //≈ 219.212 px
+                                                 //public double HeightPx = 60 * 3.779527559;   // ≈ 226.772 px
+                                                 //75x120 mm
+                                                 //public double WidthPx = 75 * 3.779527559;    //≈ 283.464 px
+                                                 //public double HeightPx = 120 * 3.779527559;   // ≈ 453.543 px
+    private (double minorMm, double majorMm) GetRulerSteps()
+    {
+        if (Zoom < 0.5) return (10, 50);
+        if (Zoom < 1.5) return (5, 10);
+        if (Zoom < 3.0) return (2, 10);
+        return (1, 5);
+    }
+
+    private void DrawHorizontalRulerMm()
+    {
+        var w = PageSize.Width * Zoom;
+        HorizontalRuler.Children.Clear();
+
+        var (minorMm, majorMm) = GetRulerSteps();
+
+        double widthMm = (w * MmPerPx);
+
+        for (double mm = 0; mm <= widthMm; mm += minorMm)
+        {
+            double x = mm * PxPerMm;
+
+            double lineHeight = (mm % majorMm == 0) ? 20 : 10;
+
+            var line = new Line
+            {
+                X1 = x,
+                X2 = x,
+                Y1 = 30 - lineHeight,
+                Y2 = 30,
+                Stroke = Brushes.Black,
+                StrokeThickness = 1
+            };
+
+            HorizontalRuler.Children.Add(line);
+
+            if (mm % majorMm == 0)
+            {
+                var text = new TextBlock
+                {
+                    Text = ((int)mm).ToString(),
+                    FontSize = 10
+                };
+
+                Canvas.SetLeft(text, x + 2);
+                Canvas.SetTop(text, 0);
+                HorizontalRuler.Children.Add(text);
+            }
+        }
+    }
+    private void DrawVerticalRulerMm()
+    {
+        var h = PageSize.Height * Zoom;
+        VerticalRuler.Children.Clear();
+
+        var (minorMm, majorMm) = GetRulerSteps();
+
+        double heightMm = (h * MmPerPx);
+
+        for (double mm = 0; mm <= heightMm; mm += minorMm)
+        {
+            double y = mm * PxPerMm;
+
+            double lineWidth = (mm % majorMm == 0) ? 20 : 10;
+
+            var line = new Line
+            {
+                X1 = 30,
+                X2 = 30 - lineWidth,
+                Y1 = y,
+                Y2 = y,
+                Stroke = Brushes.Black,
+                StrokeThickness = 1
+            };
+
+            VerticalRuler.Children.Add(line);
+
+            if (mm % majorMm == 0)
+            {
+                var text = new TextBlock
+                {
+                    Text = ((int)mm).ToString(),
+                    FontSize = 10
+                };
+
+                Canvas.SetTop(text, y + 2);
+                Canvas.SetLeft(text, 0);
+                VerticalRuler.Children.Add(text);
+            }
+        }
+    }
+
+
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F8)
+        {
+            if (_cursorEnabled)
+                DisableCursorLines();
+            else
+                EnableCursorLines();
+        }
+    }
+    private void Window_KeyUp(object sender, KeyEventArgs e)
+    {
+
+    }
+    private void StatusZoom_LostFocus(object sender, RoutedEventArgs e)
+    {
+        var combo = (ComboBox)sender;
+
+        if (combo.Text.EndsWith("%") &&
+            double.TryParse(combo.Text.Replace("%", ""), out double percent))
+        {
+            Zoom = percent / 100.0;
+        }
+    }
+
 }
 

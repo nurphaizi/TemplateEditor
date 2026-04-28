@@ -15,11 +15,11 @@ namespace TemplateEdit;
 public class BorderAdorner : Adorner
     {
         //use thumb for resizing elements
-        Thumb topLeft, topRight, bottomLeft, bottomRight;
+        Thumb topLeft, topRight, bottomLeft, bottomRight, moveThumb;
         //visual child collection for adorner
         VisualCollection visualChilderns;
-
-        public BorderAdorner(UIElement element) : base(element)
+   
+    public BorderAdorner(UIElement element) : base(element)
         {
             visualChilderns = new VisualCollection(this);
 
@@ -28,15 +28,31 @@ public class BorderAdorner : Adorner
             BuildAdornerCorners(ref topRight, Cursors.SizeNESW);
             BuildAdornerCorners(ref bottomLeft, Cursors.SizeNESW);
             BuildAdornerCorners(ref bottomRight, Cursors.SizeNWSE);
-
-            //registering drag delta events for thumb drag movement
-            topLeft.DragDelta += TopLeft_DragDelta;
+        // Move thumb (transparent overlay)
+           moveThumb = new Thumb
+           {
+            Cursor = Cursors.SizeAll,
+            Opacity = 0
+           };
+        visualChilderns.Add(moveThumb);
+        //registering drag delta events for thumb drag movement
+        topLeft.DragDelta += TopLeft_DragDelta;
             topRight.DragDelta += TopRight_DragDelta;
             bottomLeft.DragDelta += BottomLeft_DragDelta;
             bottomRight.DragDelta += BottomRight_DragDelta;
-        }
+        moveThumb.DragDelta += Move;
+    }
+    private void Move(object sender, DragDeltaEventArgs e)
+    {
+        var element = AdornedElement as FrameworkElement;
 
-        private void BottomRight_DragDelta(object sender, DragDeltaEventArgs e)
+        double left = Canvas.GetLeft(element);
+        double top = Canvas.GetTop(element);
+
+        Canvas.SetLeft(element, left + e.HorizontalChange);
+        Canvas.SetTop(element, top + e.VerticalChange);
+    }
+    private void BottomRight_DragDelta(object sender, DragDeltaEventArgs e)
         {
             FrameworkElement adornedElement = this.AdornedElement as FrameworkElement;
             Thumb bottomRightCorner = sender as Thumb;
@@ -171,7 +187,12 @@ public class BorderAdorner : Adorner
             bottomLeft.Arrange(new Rect(-adornerWidth / 2, desireHeight - adornerHeight / 2, adornerWidth, adornerHeight));
             bottomRight.Arrange(new Rect(desireWidth - adornerWidth / 2, desireHeight - adornerHeight / 2, adornerWidth, adornerHeight));
 
-            return finalSize;
+            var element = AdornedElement as FrameworkElement;
+            double w = element.ActualWidth;
+            double h = element.ActualHeight;
+         // Move area (covers whole element)
+            moveThumb.Arrange(new Rect(0, 0, w, h));
+        return finalSize;
         }
         protected override int VisualChildrenCount
         {

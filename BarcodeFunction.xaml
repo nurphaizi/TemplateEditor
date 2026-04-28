@@ -62,7 +62,9 @@
             <Separator Margin="3"/>
             <CheckBox x:Name="readable" Content="печать штрих кода" IsChecked="{Binding Path=BarcodeProperties.Readable,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
             <Separator Margin="3"/>
+            <Label Content="Узкая черта"/>
             <TextBox x:Name ="narrow" MinWidth="40"   Text="{Binding Path=BarcodeProperties.Narrow,Converter={StaticResource intToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+            <Label Content="Широкая черта"/>
             <Separator Margin="3"/>
             <TextBox x:Name ="wide" MinWidth="40" Text="{Binding Path=BarcodeProperties.Wide,Converter={StaticResource intToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
         </StackPanel>

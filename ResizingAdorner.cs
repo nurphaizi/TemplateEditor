@@ -5,11 +5,13 @@ using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using OpenTK.Graphics.OpenGL;
 using SharpVectors.Dom;
 
 namespace TemplateEdit;
@@ -32,7 +34,16 @@ public class ResizingAdorner : Adorner
     // the adorner's visual collection.
     private Point origin;
 
-    private void SelectedLineOnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+
+    private bool IsPointInsideCanvas(Point point, Canvas canvas)
+    {
+        return point.X >= 0 &&
+               point.Y >= 0 &&
+               point.X <= canvas.ActualWidth &&
+               point.Y <= canvas.ActualHeight;
+    }
+
+private void SelectedLineOnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
 
@@ -53,18 +64,23 @@ public class ResizingAdorner : Adorner
         Line line = (Line)sender;
         if (e.MouseDevice.LeftButton == MouseButtonState.Pressed)
         {
-            var parent = VisualTreeHelper.GetParent(line) as FrameworkElement;
+           var parent = VisualTreeHelper.GetParent(line) as FrameworkElement;
+           Point positionOnParent = e.GetPosition(parent);
+            if (!IsPointInsideCanvas(positionOnParent, (Canvas)parent))
+            {
+                line.ReleaseMouseCapture();
+                return;
+            }
 
-            Point positionOnParent = e.GetPosition(parent);
-            if(positionOnParent.X < 0 || positionOnParent.Y < 0 || positionOnParent.X > parent.ActualWidth || positionOnParent.Y > parent.ActualHeight)
+            if(positionOnParent.X < 0 || positionOnParent.Y < 0 || positionOnParent.X > parent.Width || positionOnParent.Y > parent.Height)
             {
                 line.ReleaseMouseCapture();
                 return;
             }   
             Point position = e.GetPosition(this);
             e.Handled = true;
-            double horizontalDelta =position.X - origin.X;
-            double verticalDelta = position.Y - origin.Y;
+            double horizontalDelta = (position.X - origin.X);
+            double verticalDelta = (position.Y - origin.Y);
             line.X1 = startPoint.X + horizontalDelta;
             line.X2 = endPoint.X + horizontalDelta;
             line.Y1 = startPoint.Y + verticalDelta;
@@ -100,7 +116,7 @@ public class ResizingAdorner : Adorner
     {
         //adding new thumbs for adorner to visual childern collection
         if (cornerThumb != null) return;
-        cornerThumb = new Thumb() { Cursor = customizedCursors, Height = 10, Width = 10, Opacity = 0.5, Background = new SolidColorBrush(Colors.Red) };
+        cornerThumb = new Thumb() { Cursor = customizedCursors, Height = 5, Width = 5, Opacity = 0.5, Background = new SolidColorBrush(Colors.Red) };
         visualChildren.Add(cornerThumb);
     }
 
@@ -108,13 +124,13 @@ public class ResizingAdorner : Adorner
     public ResizingAdorner(UIElement adornedElement)
         : base(adornedElement)
     {
+
         visualChildren = new VisualCollection(this);
         selectedLine = AdornedElement as Line;
         BuildAdornerCorners(ref startThumb, Cursors.SizeNWSE);
         BuildAdornerCorners(ref endThumb, Cursors.SizeNWSE);
         startThumb.DragDelta += StartDragDelta;
         endThumb.DragDelta += EndDragDelta;
-
         startThumb.DragCompleted += new DragCompletedEventHandler(startThumb_DragCompleted);
         endThumb.DragCompleted += new DragCompletedEventHandler(endThumb_DragCompleted);
         selectedLine.MouseLeftButtonDown += SelectedLineOnMouseLeftButtonDown;
@@ -158,7 +174,6 @@ public class ResizingAdorner : Adorner
     private void StartDragDelta(object sender, DragDeltaEventArgs e)
     {
         Point position = Mouse.GetPosition(this);
-
         selectedLine.X1 = position.X;
         selectedLine.Y1 = position.Y;
     }
@@ -167,7 +182,6 @@ public class ResizingAdorner : Adorner
     private void EndDragDelta(object sender, DragDeltaEventArgs e)
     {
         Point position = Mouse.GetPosition(this);
-
         selectedLine.X2 = position.X;
         selectedLine.Y2 = position.Y;
     }

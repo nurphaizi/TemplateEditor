@@ -93,6 +93,8 @@ public class PrimaryFieldProperties
     public System.Windows.Media.Color Background { get; set; } = System.Windows.Media.Colors.Transparent;
     public System.Windows.Media.Color Foreground { get; set; } = System.Windows.Media.Colors.Black;
     public Boolean ConvertToBitmap { get; set; } = false;
+    public double BorderThickness { get; set; } = 0;
+    public System.Windows.Media.Color BorderColor { get; set; } = System.Windows.Media.Colors.Transparent;
 }
 public class RectangleFigureProperties : PrimaryFieldProperties
 
@@ -669,6 +671,11 @@ public class ConverterDoubleToString : IValueConverter
             double number = (25.4 * (double)value) / 96;
             return number.ToString("0.##");
         }
+        if (units == "%")
+        {
+            double number = 100 * (double)value;
+            return number.ToString("0.##");
+        }
         return String.Empty;
     }
 
@@ -698,6 +705,14 @@ public class ConverterDoubleToString : IValueConverter
             if (double.TryParse(s, out number))
             {
                 return (number*96)/25.4;
+            }
+        }
+        if (units == "%")
+        {
+            double number = 0.0f;
+            if (double.TryParse(s, out number))
+            {
+                return number /100.0;
             }
         }
         return 0.0f;
@@ -896,5 +911,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+       
     }
 }

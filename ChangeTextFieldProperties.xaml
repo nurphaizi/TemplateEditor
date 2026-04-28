@@ -67,6 +67,10 @@
                 <wpfTool:ColorPicker x:Name="colorPickerBg" SelectedColor="{Binding Path=TextFieldValue.Background,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
                 <Label Content="FG" />
                 <wpfTool:ColorPicker x:Name="colorPickerFg" SelectedColor="{Binding Path=TextFieldValue.Foreground,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                <Label Content="Рамка" />
+                <TextBox x:Name="borderThickness" Text="{Binding Path=TextFieldValue.BorderThickness,Converter={StaticResource doubleToString},Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="50" />
+                <Label Content="Цвет рамки" />
+                <wpfTool:ColorPicker x:Name="colorPickerBorder" SelectedColor="{Binding Path=TextFieldValue.BorderColor,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
             <GroupBox >
                 <StackPanel>
@@ -85,12 +89,12 @@
                         <Slider Width="200 " VerticalAlignment="Center" Value ="{Binding TextFieldValue.Height,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Minimum="10" Maximum="400"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="5">
-                        <Label Content="Положение (mm) X" />
+                        <Label Content="Положение (px) X" />
                         <Separator Margin="5"/>
-                        <TextBox x:Name="left" Width="100" Text="{Binding Path=TextFieldValue.Left,Converter={StaticResource doubleToString},ConverterParameter='mm',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBox x:Name="left" Width="100" Text="{Binding Path=TextFieldValue.Left,Converter={StaticResource doubleToString},ConverterParameter='px',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
                         <Separator Margin="5"/>
                         <Label Content="Y" />
-                        <TextBox x:Name="top" Width="100" Text="{Binding Path=TextFieldValue.Top,Converter={StaticResource doubleToString},ConverterParameter='mm',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBox x:Name="top" Width="100" Text="{Binding Path=TextFieldValue.Top,Converter={StaticResource doubleToString},ConverterParameter='px',Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="5">
                         <Label Content="Угол (гр)" />

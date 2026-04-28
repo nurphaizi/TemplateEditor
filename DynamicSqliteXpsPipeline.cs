@@ -41,6 +41,7 @@ using System.Windows.Media.Media3D;
 using System.Xml;
 using ExCSS;
 using SixLabors.ImageSharp.Memory;
+using SixLabors.ImageSharp.PixelFormats;
 using Xceed.Wpf.AvalonDock.Controls;
 using ZXing;
 using static System.Net.WebRequestMethods;
@@ -860,7 +861,14 @@ public static class TsplBitmapConverter
                 RawPrinterHelper.SendBytesToPrinter(printerName, bytes);
             });
         }
-   
+
+    public static async Task SendBytesAsync(string printerName, byte[] bytes)
+    {
+        await Task.Run(() =>
+        {
+            RawPrinterHelper.SendBytesToPrinter(printerName, bytes);
+        });
+    }
 
     public async Task GenerateOnSta(
           string connectionString,
@@ -966,7 +974,14 @@ public static class TsplBitmapConverter
                     ((IAddChild)pageContent).AddChild(page);
                     fixedDoc.Pages.Add(pageContent);
                     string tsplCommands = GenerateTSPLCommands(page, ticket, printSettings);
+                    if (printSettings.Terminal)
+                    {
+                        byte[] utf8 = Encoding.UTF8.GetBytes(tsplCommands);
+                        await SendBytesAsync(printerName, utf8);
+                    }
                     await tsplWriter.WriteLineAsync(tsplCommands);
+                    
+
                 NextRow: if (section.Key != CrystalReportSection.Details)
                     {
                         break;
@@ -988,14 +1003,8 @@ public static class TsplBitmapConverter
         xps.CoreDocumentProperties.Description = "report output";
         xps.Close();
         await tsplWriter.DisposeAsync();
-        if (printSettings.Terminal)
-        {
-            await TsplPrintOnStaThreadAsync(printerName, tsplPath);
-        }
-        else
-        {
-            await PrintOnStaThreadAsync(printerName, xpsPath);
-        }
+        await PrintOnStaThreadAsync(printerName, xpsPath);
+        
 
     }
 
@@ -1161,7 +1170,13 @@ public static class TsplBitmapConverter
             return (int)Math.Round(mm * printerDpi / 25.4);
         }
 
+    public static string XprinterFontToTSPLfontX(string fontName)
+    {
+        string embedded = "3";
 
+        return embedded;
+    
+    }
         private string GenerateTSPLCommands(FixedPage page, PrintTicket ticket, PrintSettings printSettings)
         {
             var Width = ticket.PageMediaSize.Width.Value;
@@ -1205,9 +1220,11 @@ public static class TsplBitmapConverter
                     {
                     if (element is TextBox textBox)
                     {
-                        if (TextFieldProperties.ContainsKey(textBox.Name))
+                        //if (TextFieldProperties.ContainsKey(textBox.Name))
+                        //{
+                        //    var textProps = TextFieldProperties[textBox.Name];
+                        if (textBox.Tag is TextFieldValue textProps)
                         {
-                            var textProps = TextFieldProperties[textBox.Name];
                             if (textProps != null && textProps.ConvertToBitmap)
                             {
 
@@ -1217,10 +1234,16 @@ public static class TsplBitmapConverter
                                     bitmapSource.PixelWidth, bitmapSource.PixelHeight);
                                 sb.AppendLine(tspl);
                             }
-                        }
-                        else
-                        {
-                            sb.AppendLine($"TEXT {ConvertToPrinterPixels(Canvas.GetLeft(textBox), dpiX)} , {ConvertToPrinterPixels(Canvas.GetTop(textBox), dpiY)}, \"{textBox.FontFamily.Source}\", {textBox.FontSize}, 0, 1, \"{textBox.Text}\"");
+                            else
+                            {
+                                
+                                var font = XprinterFontToTSPLfontX(textBox.FontFamily.Source);
+                                var text = $"""
+                                    TEXT {ConvertToPrinterPixels(textProps.Left, dpiX)} , {ConvertToPrinterPixels(textProps.Top, dpiY)}, "{font}", {textProps.Angle}, {textProps.XMultiplication}, {textProps.YMultiplication}, "{textBox.Text}"
+                                    """;
+                                
+                                sb.AppendLine(text);
+                            }
                         }
                     }
                     else if (element is System.Windows.Shapes.Rectangle rect)
@@ -1229,9 +1252,11 @@ public static class TsplBitmapConverter
                         var y_start = ConvertToPrinterPixels(Canvas.GetTop(rect), dpiY);
                         var x_end = ConvertToPrinterPixels(Canvas.GetLeft(rect) + rect.Width, dpiX);
                         var y_end = ConvertToPrinterPixels(Canvas.GetTop(rect) + rect.Height, dpiY);
-                        if (RectangleFigures.ContainsKey(rect.Name))
+                        //if (RectangleFigures.ContainsKey(rect.Name))
+                        //{
+                        //    var rectProps = RectangleFigures[rect.Name];
+                        if (rect.Tag is RectangleFigureProperties rectProps)
                         {
-                            var rectProps = RectangleFigures[rect.Name];
                             if (rectProps != null && rectProps.ConvertToBitmap)
                             {
                                 var bitmapSource = TsplBitmapConverter.ElementToBitmapSource(rect, dpiX, dpiY);
@@ -1262,9 +1287,12 @@ public static class TsplBitmapConverter
                     else if (element is System.Windows.Shapes.Line line)
                     {
 
-                        if (Lines.ContainsKey(line.Name))
+                        //if (Lines.ContainsKey(line.Name))
+                        //{
+                        //    var lineProp = Lines[line.Name];
+                        if (line.Tag is LineProperties lineProp)
                         {
-                            var lineProp = Lines[line.Name];
+                             lineProp = Lines[line.Name];
                             if (lineProp != null && lineProp.ConvertToBitmap)
                             {
                                 var bitmapSource = TsplBitmapConverter.ElementToBitmapSource(line, dpiX, dpiY);
@@ -1304,22 +1332,27 @@ public static class TsplBitmapConverter
                     }
                     else if (element is System.Windows.Shapes.Polygon polygon)
                     {
-                        var polygonProps = Polygons[polygon.Name];
-                        if (polygonProps != null && polygonProps.ConvertToBitmap)
+                        //var polygonProps = Polygons[polygon.Name];
+                        if (polygon.Tag is PolygonProperties polygonProps)
                         {
-                            var bitmapSource = TsplBitmapConverter.ElementToBitmapSource(polygon, dpiX, dpiY);
-                            var tspl =
-                                TsplBitmapConverter.ConvertToTspl(bitmapSource, ConvertToPrinterPixels(Canvas.GetLeft(polygon), dpiX), ConvertToPrinterPixels(Canvas.GetTop(polygon), dpiY),
-                                bitmapSource.PixelWidth, bitmapSource.PixelHeight);
-                            sb.AppendLine(tspl);
+                            if (polygonProps != null && polygonProps.ConvertToBitmap)
+                            {
+                                var bitmapSource = TsplBitmapConverter.ElementToBitmapSource(polygon, dpiX, dpiY);
+                                var tspl =
+                                    TsplBitmapConverter.ConvertToTspl(bitmapSource, ConvertToPrinterPixels(Canvas.GetLeft(polygon), dpiX), ConvertToPrinterPixels(Canvas.GetTop(polygon), dpiY),
+                                    bitmapSource.PixelWidth, bitmapSource.PixelHeight);
+                                sb.AppendLine(tspl);
+                            }
                         }
 
                     }
                     else if (element is Image image)
                     {
-                        if (Barcodes.ContainsKey(image.Name))
+                        //if (Barcodes.ContainsKey(image.Name))
+                        //{
+                        //    var barcodeProps = Barcodes[image.Name];
+                        if (image.Tag is BarcodeImageProperties barcodeProps)
                         {
-                            var barcodeProps = Barcodes[image.Name];
                             if (barcodeProps.BarcodeFormat == BarcodeFormat.QR_CODE)
                             {
                                 sb.AppendLine(TsplBarcodeMapper.CreateQRCode(
@@ -1339,7 +1372,6 @@ public static class TsplBitmapConverter
                         }
                         else
                         {
-
                             if (Images.ContainsKey(image.Name))
                             {
                                 var bitmapSource = TsplBitmapConverter.ElementToBitmapSource(image, dpiX, dpiY);
@@ -1355,7 +1387,7 @@ public static class TsplBitmapConverter
                 }
             }
             sb.AppendLine("PRINT 1,1");
-            return sb.ToString();
+        return sb.ToString();
 
         }
 
@@ -1435,6 +1467,12 @@ public static class TsplBitmapConverter
                 var renderTransform = textBox.RenderTransform;
                 BindingOperations.ClearBinding(textBox, TextBox.RenderTransformProperty);
                 textBox.RenderTransform = renderTransform;
+                
+                // Tag
+                var tag = textBox.Tag;
+                BindingOperations.ClearBinding(textBox, TextBox.TagProperty);
+                textBox.Tag = tag;
+
             }
             if (child is System.Windows.Shapes.Rectangle rectangle)
             {
@@ -1474,6 +1512,12 @@ public static class TsplBitmapConverter
                 var stretch = rectangle.Stretch;
                 BindingOperations.ClearBinding(rectangle, Rectangle.StretchProperty);
                 rectangle.Stretch = stretch;
+                //Tag
+                var tag = rectangle.Tag;
+                BindingOperations.ClearBinding(rectangle, Rectangle.TagProperty);
+                rectangle.Tag = tag;
+                //
+
             }
             if (child is System.Windows.Shapes.Line line)
             {
@@ -1498,6 +1542,12 @@ public static class TsplBitmapConverter
                 var opacity = line.Opacity;
                 BindingOperations.ClearBinding(line, Line.OpacityProperty);
                 line.Opacity = opacity;
+                //Tag
+                var tag=line.Tag;
+                BindingOperations.ClearBinding(line, Line.TagProperty); 
+                line.Tag = tag; 
+
+
             }
             if (child is System.Windows.Shapes.Polygon polygon)
             {
@@ -1533,6 +1583,12 @@ public static class TsplBitmapConverter
                 var stretch = polygon.Stretch;
                 BindingOperations.ClearBinding(polygon, Polygon.StretchProperty);
                 polygon.Stretch = stretch;
+                
+                //Tag
+                var tag = polygon.Tag;
+                BindingOperations.ClearBinding(polygon, Polygon.TagProperty);
+                polygon.Tag = tag;  
+
             }
             if (child is Image image)
             {
@@ -1551,6 +1607,11 @@ public static class TsplBitmapConverter
                 var source = image.Source;
                 BindingOperations.ClearBinding(image, Image.SourceProperty);
                 image.Source = source;
+                //Tag
+                var tag = image.Tag;
+                BindingOperations.ClearBinding(image, Image.TagProperty);
+                image.Tag = tag;
+
             }
         }
     }
@@ -1758,7 +1819,14 @@ public static class TsplBitmapConverter
             bindingStrokeEndLineCap.Mode = BindingMode.TwoWay;
             bindingStrokeEndLineCap.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
             line.SetBinding(Line.StrokeEndLineCapProperty, bindingStrokeEndLineCap);
-
+        //Tag
+        Binding bindingTag = new Binding();
+        bindingTag.Source = Lines;
+        bindingTag.Path = new PropertyPath("[" + lineFigure.Name + "]");
+        bindingTag.Mode = BindingMode.OneWay;
+        bindingTag.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        line.SetBinding(Line.TagProperty, bindingTag);
+        //-------
             Binding bindingStrokeStartLineCap = new Binding();
             bindingStrokeStartLineCap.Source = Lines;
             bindingStrokeStartLineCap.Path = new PropertyPath("[" + lineFigure.Name + "].StrokeStartLineCap");
@@ -1869,9 +1937,16 @@ public static class TsplBitmapConverter
             bindingHeight.Mode = BindingMode.TwoWay;
             bindingHeight.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
             rectangle.SetBinding(Rectangle.HeightProperty, bindingHeight);
+        
+        //Tag
+        Binding bindingTag = new Binding();
+        bindingTag.Source = RectangleFigures;
+        bindingTag.Path = new PropertyPath("[" + rectangleFigure.Name + "]");
+        bindingTag.Mode = BindingMode.OneWay;
+        bindingTag.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        rectangle.SetBinding(Rectangle.TagProperty, bindingTag);
 
-
-            Binding bindingThickness = new Binding();
+        Binding bindingThickness = new Binding();
             bindingThickness.Source = RectangleFigures;
             bindingThickness.Path = new PropertyPath("[" + rectangleFigure.Name + "].StrokeThickness");
             bindingThickness.Mode = BindingMode.TwoWay;
@@ -1944,13 +2019,13 @@ public static class TsplBitmapConverter
             bindingWidth.Mode = BindingMode.TwoWay;
             bindingWidth.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
             textBox.SetBinding(TextBox.WidthProperty, bindingWidth);
-
-            Binding bindingHeight = new Binding();
-            bindingHeight.Source = TextFieldProperties;
-            bindingHeight.Path = new PropertyPath("[" + textFieldValue.Name + "].Height");
-            bindingHeight.Mode = BindingMode.TwoWay;
-            bindingHeight.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
-            textBox.SetBinding(TextBox.HeightProperty, bindingHeight);
+        //Tag
+            Binding bindingTag = new Binding();
+            bindingTag.Source = TextFieldProperties;
+            bindingTag.Path = new PropertyPath("[" + textFieldValue.Name + "]");
+            bindingTag.Mode = BindingMode.OneWay;
+            bindingTag.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+            textBox.SetBinding(TextBox.TagProperty, bindingTag);
 
             Binding bindingFontFamily = new Binding();
             bindingFontFamily.Source = TextFieldProperties;
@@ -1975,7 +2050,26 @@ public static class TsplBitmapConverter
             bindingForeground.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
             textBox.SetBinding(TextBox.ForegroundProperty, bindingForeground);
 
-            Binding bindingAlignment = new Binding();
+        Binding bindingBorderColor = new Binding();
+        bindingBorderColor.Source = TextFieldProperties;
+        bindingBorderColor.Converter = new ColorToSolidColorBrushConverter();
+        bindingBorderColor.Path = new PropertyPath("[" + textFieldValue.Name + "].BorderColor");
+        bindingBorderColor.Mode = BindingMode.TwoWay;
+        bindingBorderColor.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        textBox.SetBinding(TextBox.BorderBrushProperty, bindingBorderColor);
+
+        Binding bindingBorderThickness = new Binding();
+        bindingBorderThickness.Source = TextFieldProperties;
+        bindingBorderThickness.Converter = new DoubleToThicknessConverter();
+        bindingBorderThickness.Path = new PropertyPath("[" + textFieldValue.Name + "].BorderThickness");
+        bindingBorderThickness.Mode = BindingMode.TwoWay;
+        bindingBorderThickness.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+        textBox.SetBinding(TextBox.BorderThicknessProperty, bindingBorderThickness);
+
+
+
+
+        Binding bindingAlignment = new Binding();
             bindingAlignment.Source = TextFieldProperties;
             bindingAlignment.Path = new PropertyPath("[" + textFieldValue.Name + "].TextAlignment");
             bindingAlignment.Mode = BindingMode.TwoWay;
@@ -2038,7 +2132,18 @@ public static class TsplBitmapConverter
             BindingGroup group = new BindingGroup();
             barcodeImage.BindingGroup = group;
             var barcodeImageProperties = Barcodes[barcodeImage.Name];
-            Binding binding = new Binding();
+       //Tag
+        Binding bindingTag = new Binding()
+        {
+            Source = Barcodes,
+            Path = new PropertyPath("[" + barcodeImage.Name + "]"),
+            Mode = BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+        };
+        barcodeImage.SetBinding(Image.TagProperty, bindingTag);
+
+
+        Binding binding = new Binding();
             binding.Converter = new BarcodeImagePropertiesToBitmapImageConverter();
             binding.Mode = BindingMode.OneWay;
             binding.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
@@ -2071,7 +2176,8 @@ public static class TsplBitmapConverter
                 Mode = BindingMode.TwoWay,
                 UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
             };
-            barcodeImage.SetBinding(Image.HeightProperty, bindingHeight);
+
+        barcodeImage.SetBinding(Image.HeightProperty, bindingHeight);
 
             Binding bindingLeft = new Binding()
             {
@@ -2133,7 +2239,17 @@ public static class TsplBitmapConverter
             bindingHeight.Path = new PropertyPath("[" + qrCodeImageProperties.Name + "].Height");
             qrcodeImage.SetBinding(Image.HeightProperty, bindingHeight);
 
-            Binding bindingLeft = new Binding()
+        //Tag
+        Binding bindingTag = new Binding()
+        {
+            Mode = BindingMode.OneWay,
+            Source = QRCodes,
+            Path = new PropertyPath("[" + qrCodeImageProperties.Name + "]"),
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+        };
+        BindingOperations.SetBinding(qrcodeImage, Image.TagProperty, bindingTag);
+
+        Binding bindingLeft = new Binding()
             {
                 Mode = BindingMode.TwoWay,
                 Source = QRCodes,
@@ -2195,7 +2311,21 @@ public static class TsplBitmapConverter
                 UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
             };
             BindingOperations.SetBinding(image, Canvas.LeftProperty, bindingLeft);
-            Binding bindingTop = new Binding()
+        
+        //Tag
+        Binding bindingTag = new Binding()
+        {
+            Mode = BindingMode.OneWay,
+            Source = Images,
+            Path = new PropertyPath("[" + imageProperties.Name + "]"),
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+        };
+        BindingOperations.SetBinding(image, Image.TagProperty, bindingTag);
+
+
+
+
+        Binding bindingTop = new Binding()
             {
                 Mode = BindingMode.TwoWay,
                 Source = Images,
@@ -2249,6 +2379,17 @@ public static class TsplBitmapConverter
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
         };
         BindingOperations.SetBinding(polygon, Canvas.LeftProperty, bindingLeft);
+
+        //Tag
+        Binding bindingTag = new Binding()
+        {
+            Mode = BindingMode.TwoWay,
+            Source = Polygons,
+            Path = new PropertyPath($"[{polygonFigure.Name}]"),
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+        };
+        BindingOperations.SetBinding(polygon, Canvas.TagProperty, bindingTag);
+
         Binding bindingTop = new Binding()
         {
             Mode = BindingMode.TwoWay,
